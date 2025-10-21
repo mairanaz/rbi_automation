@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Equipment List</title>
+</head>
+<body>
+  <h2>Extracted Equipment Data</h2>
+  <a href="/">⬅️ Upload Another Drawing</a>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>No.</th>
+      <th>Tag Number</th>
+      <th>Risk Level</th>
+      <th>Uploaded At</th>
+    </tr>
+    {% for e in equipments %}
+    <tr>
+      <td>{{ forloop.counter }}</td>
+      <td>{{ e.tag_number }}</td>
+      <td>{{ e.risk_level }}</td>
+      <td>{{ e.uploaded_at }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">No data yet.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
