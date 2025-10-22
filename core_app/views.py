@@ -19,7 +19,7 @@ def upload_drawing(request):
 
         return redirect("equipment_list")
 
-    return render(request, "upload.html")
+    return render(request, "content.html")
 
 
 def equipment_list(request):
