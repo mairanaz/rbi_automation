@@ -1,6 +1,5 @@
 from django.shortcuts import render
 
-# Create your views here.
 
 def upload_drawing(request):
     if request.method == "POST":
@@ -20,7 +19,7 @@ def upload_drawing(request):
 
         return redirect("equipment_list")
 
-    return render(request, "core_app/upload.html")
+    return render(request, "upload.html")
 
 
 def equipment_list(request):
