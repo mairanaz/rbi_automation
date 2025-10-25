@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% include 'layouts/header.html' %}
+
+<style>
+    .dashboard-card {
+        border-radius: 15px;
+        background: #fff;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+        transition: 0.3s;
+    }
+
+    .dashboard-card:hover {
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .section-title {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .file-preview-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+    }
+
+    iframe,
+    img {
+        border-radius: 10px;
+    }
+
+    .badge {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="dashboard-card p-4">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">AI File Dashboard</h2>
+            <p class="text-muted mb-0">Upload your image or PDF file to generate AI-based reports & presentations</p>
+        </div>
+
+        <h2>Welcome {{ request.session.email }}</h2>
+
+
+
+        <form id="uploadForm" enctype="multipart/form-data" method="POST" action="{% url 'upload_analyze' %}"
+            class="mt-4">
+            {% csrf_token %}
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-9 col-md-8 col-sm-12">
+                    <label for="fileInput" class="form-label fw-semibold">Choose File (Image / PDF)</label>
+                    <input class="form-control form-control-lg" type="file" id="fileInput" name="uploaded_file"
+                        accept="image/*,.pdf" required>
+                </div>
+                <div class="col-lg-3 col-md-4 col-sm-12 d-grid">
+                    <button type="submit" class="btn btn-lg btn-primary mt-4 mt-md-0">
+                        <i class="ri-upload-cloud-2-line me-2"></i> Upload & Generate
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        {% if summary %}
+        <div class="card mt-5">
+            <div class="card-body">
+                <h5 class="card-title">📊 Analysis Result</h5>
+                <p class="text-muted">{{ summary }}</p>
+
+                <p><strong>Slides Count:</strong> {{ slides_count }}</p>
+                <p><strong>Processing Time:</strong> {{ processing_time }}</p>
+
+                <div class="mt-3">
+                    <a href="{% url 'download_file' analysis_id='ANALYSIS_ID_PLACEHOLDER' file_type='excel' %}"
+                        class="btn btn-outline-success me-2">
+                        <i class="ri-file-excel-2-line"></i> Download Excel
+                    </a>
+                    <a href="{% url 'download_file' analysis_id='ANALYSIS_ID_PLACEHOLDER' file_type='pptx' %}"
+                        class="btn btn-outline-primary me-2">
+                        <i class="ri-file-ppt-2-line"></i> Download PowerPoint
+                    </a>
+
+
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+
+
+        <div id="previewSection" class="mt-5 d-none">
+            <h4 class="section-title mb-3"><i class="ri-file-search-line me-2 text-primary"></i> Original File Preview
+            </h4>
+            <div class="file-preview-box">
+                <p id="fileName" class="fw-semibold text-primary mb-3"></p>
+                <div id="filePreview" class="text-center"></div>
+            </div>
+        </div>
+
+
+        <div id="generatedSection" class="mt-5 d-none">
+            <h4 class="section-title mb-3"><i class="ri-magic-line me-2 text-success"></i> Generated Files Preview</h4>
+            <div class="row g-4">
+
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-semibold text-secondary mb-0">📊 Excel Report (Dummy)</h5>
+                                <button id="downloadExcelBtn" class="btn btn-sm btn-outline-success d-none">
+                                    <i class="ri-download-2-line me-1"></i> Download
+                                </button>
+                            </div>
+                            <iframe id="excelPreview" width="100%" height="300" class="border rounded"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-semibold text-secondary mb-0">📽️ PowerPoint Preview (Dummy)</h5>
+                                <button id="downloadPptBtn" class="btn btn-sm btn-outline-primary d-none">
+                                    <i class="ri-download-2-line me-1"></i> Download
+                                </button>
+                            </div>
+                            <iframe id="pptPreview" width="100%" height="300" class="border rounded"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="mt-5">
+            <h4 class="section-title mb-3 text-center"><i class="ri-history-line me-2 text-dark"></i> Upload History
+            </h4>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle text-nowrap">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">File Name</th>
+                           
+                            <th scope="col">AI Summary</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
+                                <th scope="col">Created On</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% if upload_history %}
+                        {% for item in upload_history %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.file_name }}</td>
+                           
+                            <td style="white-space: normal; word-wrap: break-word; max-width: 400px;">
+                                {{ item.summary }}
+                            </td>
+
+                            <td>
+                                {% if item.status == "Completed" %}
+                                <span class="badge bg-success-subtle text-success">Completed</span>
+                                {% elif item.status == "Failed" %}
+                                <span class="badge bg-danger-subtle text-danger">Failed</span>
+                                {% elif item.status == "Pending" %}
+                                <span class="badge bg-warning-subtle text-warning">Pending</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ item.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='excel' %}"
+                                    class="btn btn-sm btn-outline-success">
+                                    Download Excel
+                                </a>
+                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='pptx' %}"
+                                    class="btn btn-sm btn-outline-primary">
+                                    Download PPTX
+                                </a>
+                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='image' %}"
+                                    class="btn btn-sm btn-outline-secondary">
+                                    Original Image
+                                </a>
+
+
+                            </td>
+                             <td>{{ item.created_at}}</td>
+                         
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No uploads yet.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const uploadForm = document.getElementById('uploadForm');
+    const previewSection = document.getElementById('previewSection');
+    const generatedSection = document.getElementById('generatedSection');
+    const fileNameText = document.getElementById('fileName');
+    const filePreview = document.getElementById('filePreview');
+    const excelPreview = document.getElementById('excelPreview');
+    const pptPreview = document.getElementById('pptPreview');
+    const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+    const downloadPptBtn = document.getElementById('downloadPptBtn');
+
+ 
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    fileInput.addEventListener('change', function () {
+        const selectedFile = fileInput.files[0];
+        if (!selectedFile) return;
+
+        previewSection.classList.remove('d-none');
+        fileNameText.textContent = selectedFile.name;
+        filePreview.innerHTML = '';
+
+        const blobUrl = URL.createObjectURL(selectedFile);
+        if (selectedFile.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = blobUrl;
+            img.classList.add('img-fluid', 'shadow-sm', 'rounded');
+            img.style.maxHeight = '350px';
+            filePreview.appendChild(img);
+        } else if (selectedFile.type === 'application/pdf') {
+            const iframe = document.createElement('iframe');
+            iframe.src = blobUrl;
+            iframe.width = '100%';
+            iframe.height = '400px';
+            iframe.classList.add('border', 'rounded');
+            filePreview.appendChild(iframe);
+        }
+    });
+
+   
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Please select a file.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('uploaded_file', file);
+
+        const uploadBtn = uploadForm.querySelector('button[type="submit"]');
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Uploading...';
+
+        try {
+            const response = await fetch("{% url 'upload_analyze' %}", {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': csrftoken
+                },
+                body: formData
+            });
+
+            const html = await response.text();
+           
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newContent = doc.querySelector('.dashboard-card');
+            document.querySelector('.dashboard-card').innerHTML = newContent.innerHTML;
+
+           
+            // loadUploadHistory();
+
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Error uploading file.");
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="ri-upload-cloud-2-line me-2"></i> Upload & Generate';
+        }
+    });
+
+    
+    async function loadUploadHistory() {
+        const response = await fetch("{% url 'dashboard' %}", {
+            method: 'GET'
+        });
+        const html = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTable = doc.querySelector('table.table');
+        const currentTable = document.querySelector('table.table');
+
+        if (newTable && currentTable) {
+            currentTable.innerHTML = newTable.innerHTML;
+        }
+    }
+</script>
+
+
+{% endblock %}
