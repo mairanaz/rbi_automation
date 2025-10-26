@@ -10,7 +10,6 @@ urlpatterns=[
 
     path('download/<str:analysis_id>/<str:file_type>/', views.download_file, name='download_file'),
 
-
-
+    path("preview/<str:analysis_id>/<str:file_type>/", views.preview_file, name="preview_file"),
 
 ]

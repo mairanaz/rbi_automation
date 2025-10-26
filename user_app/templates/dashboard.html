@@ -78,20 +78,23 @@
                 <p><strong>Processing Time:</strong> {{ processing_time }}</p>
 
                 <div class="mt-3">
-                    <a href="{% url 'download_file' analysis_id='ANALYSIS_ID_PLACEHOLDER' file_type='excel' %}"
+                    <a href="{% url 'download_file' analysis_id=analysis_id file_type='excel' %}"
                         class="btn btn-outline-success me-2">
                         <i class="ri-file-excel-2-line"></i> Download Excel
                     </a>
-                    <a href="{% url 'download_file' analysis_id='ANALYSIS_ID_PLACEHOLDER' file_type='pptx' %}"
+                    <a href="{% url 'download_file' analysis_id=analysis_id file_type='pptx' %}"
                         class="btn btn-outline-primary me-2">
                         <i class="ri-file-ppt-2-line"></i> Download PowerPoint
                     </a>
-
-
+                    <a href="{% url 'download_file' analysis_id=analysis_id file_type='image' %}"
+                        class="btn btn-outline-secondary">
+                        <i class="ri-image-line"></i> View Image
+                    </a>
                 </div>
             </div>
         </div>
         {% endif %}
+
 
 
 
@@ -106,40 +109,6 @@
         </div>
 
 
-        <div id="generatedSection" class="mt-5 d-none">
-            <h4 class="section-title mb-3"><i class="ri-magic-line me-2 text-success"></i> Generated Files Preview</h4>
-            <div class="row g-4">
-
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h5 class="fw-semibold text-secondary mb-0">📊 Excel Report (Dummy)</h5>
-                                <button id="downloadExcelBtn" class="btn btn-sm btn-outline-success d-none">
-                                    <i class="ri-download-2-line me-1"></i> Download
-                                </button>
-                            </div>
-                            <iframe id="excelPreview" width="100%" height="300" class="border rounded"></iframe>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h5 class="fw-semibold text-secondary mb-0">📽️ PowerPoint Preview (Dummy)</h5>
-                                <button id="downloadPptBtn" class="btn btn-sm btn-outline-primary d-none">
-                                    <i class="ri-download-2-line me-1"></i> Download
-                                </button>
-                            </div>
-                            <iframe id="pptPreview" width="100%" height="300" class="border rounded"></iframe>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
 
         <div class="mt-5">
             <h4 class="section-title mb-3 text-center"><i class="ri-history-line me-2 text-dark"></i> Upload History
@@ -149,11 +118,11 @@
                     <thead class="table-light">
                         <tr>
                             <th scope="col">File Name</th>
-                           
+
                             <th scope="col">AI Summary</th>
-                            <th scope="col">Status</th>
+                            <!-- <th scope="col">Status</th> -->
                             <th scope="col">Actions</th>
-                                <th scope="col">Created On</th>
+                            <th scope="col">Created On</th>
                         </tr>
                     </thead>
 
@@ -162,12 +131,12 @@
                         {% for item in upload_history %}
                         <tr>
                             <td class="fw-semibold">{{ item.file_name }}</td>
-                           
+
                             <td style="white-space: normal; word-wrap: break-word; max-width: 400px;">
                                 {{ item.summary }}
                             </td>
 
-                            <td>
+                            <!-- <td>
                                 {% if item.status == "Completed" %}
                                 <span class="badge bg-success-subtle text-success">Completed</span>
                                 {% elif item.status == "Failed" %}
@@ -177,25 +146,22 @@
                                 {% else %}
                                 <span class="badge bg-secondary-subtle text-secondary">{{ item.status }}</span>
                                 {% endif %}
-                            </td>
+                            </td> -->
                             <td>
-                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='excel' %}"
-                                    class="btn btn-sm btn-outline-success">
-                                    Download Excel
-                                </a>
-                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='pptx' %}"
-                                    class="btn btn-sm btn-outline-primary">
-                                    Download PPTX
-                                </a>
-                                <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='image' %}"
-                                    class="btn btn-sm btn-outline-secondary">
-                                    Original Image
-                                </a>
-
+                                <button class="btn btn-sm btn-outline-success"
+                                    onclick="previewFile('{{ item.analysis_id }}', 'excel')">
+                                    Preview Excel
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary"
+                                    onclick="previewFile('{{ item.analysis_id }}', 'pptx')">
+                                    Preview PowerPoint
+                                </button>
+                                <!-- <a href="{% url 'download_file' analysis_id=item.analysis_id file_type='excel' %}" 
+                            class="btn btn-sm btn-link text-success">Download</a> -->
 
                             </td>
-                             <td>{{ item.created_at}}</td>
-                         
+                            <td>{{ item.created_at}}</td>
+
                         </tr>
                         {% endfor %}
                         {% else %}
@@ -207,9 +173,50 @@
 
                 </table>
             </div>
+
+            <!-- 📊 File Preview Modal -->
+            <!-- 📊 File Preview Modal (modern design like Google Docs) -->
+            <!-- 📊 File Preview Modal -->
+            <div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-light border-bottom">
+                            <h5 class="modal-title fw-semibold text-dark d-flex align-items-center"
+                                id="filePreviewLabel">
+                                <i class="ri-file-search-line me-2 text-primary"></i> File Preview
+                            </h5>
+                            <div>
+                                <a id="downloadFileBtn" href="#" target="_blank"
+                                    class="btn btn-sm btn-outline-success me-2">
+                                    <i class="ri-download-2-line me-1"></i> Download
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="ri-close-line"></i> Close
+                                </button>
+                            </div>
+                        </div>
+                        <div class="modal-body bg-white">
+                            <div id="filePreviewContent" class="text-center" style="height: 80vh; overflow: auto;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
         </div>
     </div>
 </div>
+
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
 
 <script>
     const fileInput = document.getElementById('fileInput');
@@ -223,7 +230,108 @@
     const downloadExcelBtn = document.getElementById('downloadExcelBtn');
     const downloadPptBtn = document.getElementById('downloadPptBtn');
 
- 
+
+    async function previewFile(analysisId, fileType) {
+        const previewContent = document.getElementById("filePreviewContent");
+        const modal = new bootstrap.Modal(document.getElementById("filePreviewModal"));
+        const downloadBtn = document.getElementById("downloadFileBtn");
+
+        // Reset modal
+        previewContent.innerHTML = `<div class="text-center p-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="text-muted mt-2">Loading preview...</p>
+        </div>`;
+        modal.show();
+
+        // Set download link (proxy from Django)
+        downloadBtn.href = `/user/download/${analysisId}/${fileType}/`;
+        downloadBtn.className = "btn btn-sm btn-outline-success me-2";
+
+        try {
+            const response = await fetch(`/user/preview/${analysisId}/${fileType}/`);
+            const data = await response.json();
+            if (data.base64) {
+                const blob = b64toBlob(data.base64, data.mime);
+                const url = URL.createObjectURL(blob);
+
+                if (fileType === "excel") {
+                    // ✅ Render Excel with SheetJS (simple table)
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const workbook = XLSX.read(e.target.result, {
+                            type: 'binary'
+                        });
+                        const firstSheet = workbook.SheetNames[0];
+                        const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
+                            header: 1
+                        });
+
+                        let html = '<table class="table table-bordered table-striped table-sm w-100">';
+                        sheet.forEach(row => {
+                            html += '<tr>';
+                            row.forEach(cell => html += `<td>${cell || ''}</td>`);
+                            html += '</tr>';
+                        });
+                        html += '</table>';
+                        previewContent.innerHTML = `
+                        <div class="p-3 bg-light border rounded shadow-sm">
+                            ${html}
+                        </div>`;
+                    };
+                    reader.readAsBinaryString(blob);
+
+                } else if (fileType === "pptx") {
+                    // ✅ PowerPoint: use Google Docs Viewer
+                    const iframe = document.createElement('iframe');
+                    iframe.src =
+                        `https://docs.google.com/gview?embedded=true&url=https://rbi-api.drivecloud.online/api/v1/analysis/download/${analysisId}/pptx`;
+                    iframe.width = "100%";
+                    iframe.height = "100%";
+                    iframe.style.border = "none";
+                    previewContent.innerHTML = "";
+                    previewContent.appendChild(iframe);
+
+                } else {
+                    // Other (PDF/Image)
+                    const iframe = document.createElement('iframe');
+                    iframe.src = url;
+                    iframe.width = "100%";
+                    iframe.height = "100%";
+                    iframe.style.border = "none";
+                    previewContent.innerHTML = "";
+                    previewContent.appendChild(iframe);
+                }
+            } else {
+                previewContent.innerHTML = `<p class="text-danger text-center mt-4">
+                ${data.error || 'Unable to preview this file.'}
+            </p>`;
+            }
+        } catch (error) {
+            previewContent.innerHTML = `<p class="text-danger text-center mt-4">Error loading preview.</p>`;
+            console.error(error);
+        }
+    }
+
+
+    function b64toBlob(b64Data, contentType) {
+        const byteCharacters = atob(b64Data);
+        const byteArrays = [];
+        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) {
+                byteNumbers[i] = slice.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            byteArrays.push(byteArray);
+        }
+        return new Blob(byteArrays, {
+            type: contentType
+        });
+    }
+
+
+
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -265,7 +373,7 @@
         }
     });
 
-   
+
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -292,13 +400,13 @@
             });
 
             const html = await response.text();
-           
+
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const newContent = doc.querySelector('.dashboard-card');
             document.querySelector('.dashboard-card').innerHTML = newContent.innerHTML;
 
-           
+
             // loadUploadHistory();
 
         } catch (error) {
@@ -310,7 +418,7 @@
         }
     });
 
-    
+
     async function loadUploadHistory() {
         const response = await fetch("{% url 'dashboard' %}", {
             method: 'GET'

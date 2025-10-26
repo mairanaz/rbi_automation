@@ -88,7 +88,6 @@ def dashboard(request):
             for item in analyses:
                 created_at_raw = item.get("createdAt")
 
-                me
                 try:
                     created_at = datetime.strptime(created_at_raw, "%Y-%m-%dT%H:%M:%S.%fZ")
                 except ValueError:
@@ -154,52 +153,49 @@ def upload_and_analyze(request):
                 result = response.json()
                 data = result.get("data", {})
 
+                # Ambil ID sebenar
                 analysis_id = data.get("analysis_id")
 
-              
-                excel_download_url = f"https://rbi-api.drivecloud.online/api/v1/analysis/download/{analysis_id}/excel"
-                pptx_download_url = f"https://rbi-api.drivecloud.online/api/v1/analysis/download/{analysis_id}/pptx"
-                image_download_url = f"https://rbi-api.drivecloud.online/api/v1/analysis/download/{analysis_id}/image"
+                # ✅ Build URL proxy (guna Django sendiri)
+                excel_url = f"/user/download/{analysis_id}/excel/"
+                pptx_url = f"/user/download/{analysis_id}/pptx/"
+                image_url = f"/user/download/{analysis_id}/image/"
+
+                # ✅ Ambil upload history semasa
+                list_api = "https://rbi-api.drivecloud.online/api/v1/analysis/list?page=1&limit=10&status=completed"
+                list_response = requests.get(list_api, headers=headers)
+                upload_history = []
+
+                if list_response.status_code == 200:
+                    analyses = list_response.json().get("data", {}).get("analyses", [])
+                    for item in analyses:
+                        upload_history.append({
+                            "file_name": item["original_filename"],
+                            "created_at": item["createdAt"],
+                            "file_type": "Excel + PowerPoint",
+                            "status": item["status"].capitalize(),
+                            "analysis_id": item["analysis_id"],
+                            "summary": item.get("summary"),
+                        })
 
                 messages.success(request, "✅ Analysis completed successfully!")
 
-              
                 context = {
                     "email": request.session.get("email"),
                     "summary": data.get("summary"),
                     "processing_time": data.get("processing_time"),
                     "slides_count": data.get("slides_count"),
-                    "excel_url": excel_download_url,
-                    "pptx_url": pptx_download_url,
-                    "image_url": image_download_url,
-                    "analysis_id": analysis_id,
+                    "analysis_id": analysis_id,  # <— PENTING
+                    "excel_url": excel_url,
+                    "pptx_url": pptx_url,
+                    "image_url": image_url,
+                    "upload_history": upload_history
                 }
-
-                
-                try:
-                    list_api = "https://rbi-api.drivecloud.online/api/v1/analysis/list?page=1&limit=10&status=completed"
-                    list_response = requests.get(list_api, headers=headers)
-                    if list_response.status_code == 200:
-                        result = list_response.json()
-                        analyses = result.get("data", {}).get("analyses", [])
-                        upload_history = []
-                        for item in analyses:
-                            upload_history.append({
-                                "file_name": item["original_filename"],
-                                "created_at": item["createdAt"],
-                                "file_type": "Excel + PowerPoint",
-                                "status": item["status"].capitalize(),
-                                "excel_path": item["analysis_id"],  
-                                "pptx_path": item["analysis_id"],
-                            })
-                        context["upload_history"] = upload_history
-                except Exception as e:
-                    print("Error refreshing upload history:", e)
 
                 return render(request, "dashboard.html", context)
 
             else:
-                print(response.text)
+                print("Error Response:", response.text)
                 messages.error(request, f"Error: {response.status_code}")
                 return redirect("dashboard")
 
@@ -209,6 +205,7 @@ def upload_and_analyze(request):
             return redirect("dashboard")
 
     return redirect("dashboard")
+
 
 
 
@@ -252,3 +249,33 @@ def download_file(request, analysis_id, file_type):
         print("Download error:", e)
         messages.error(request, "Error connecting to download API.")
         return redirect("dashboard")
+
+
+
+from django.http import JsonResponse
+import base64
+
+def preview_file(request, analysis_id, file_type):
+    token = request.session.get("api_token")
+    if not token:
+        return JsonResponse({"error": "Unauthorized"}, status=401)
+
+    api_url = f"https://rbi-api.drivecloud.online/api/v1/analysis/download/{analysis_id}/{file_type}"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    try:
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 200:
+            encoded = base64.b64encode(response.content).decode('utf-8')
+            mime = "application/vnd.ms-excel" if file_type == "excel" else "application/vnd.ms-powerpoint"
+            return JsonResponse({
+                "base64": encoded,
+                "mime": mime
+            })
+        else:
+            return JsonResponse({"error": "Failed to fetch file"}, status=response.status_code)
+    except Exception as e:
+        print("Preview error:", e)
+        return JsonResponse({"error": "Error connecting to API"}, status=500)
+
+        
