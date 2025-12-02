@@ -34,8 +34,9 @@
 
 <body>
 
-  <!-- 🔹 Header  -->
-  {% include 'layouts/header.html' %}
+  {% block header %}
+      {% include 'layouts/header.html' %}
+  {% endblock header %}
 
   <!-- 🔹 Main Content -->
   <main class="container-fluid py-4">
