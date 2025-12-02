@@ -279,3 +279,27 @@ def preview_file(request, analysis_id, file_type):
         return JsonResponse({"error": "Error connecting to API"}, status=500)
 
         
+def delete_analysis(request, analysis_id):
+    token = request.session.get("api_token")
+    if not token:
+        return JsonResponse({"error": "Not authenticated."}, status=401)
+
+    api_url = f"https://rbi-api.drivecloud.online/api/v1/analysis/{analysis_id}"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    try:
+        response = requests.delete(api_url, headers=headers)
+        if response.status_code == 200:
+            return JsonResponse({"message": "Analysis deleted successfully!"})
+        elif response.status_code == 404:
+            return JsonResponse({"error": "Analysis not found."}, status=404)
+        elif response.status_code == 401:
+            return JsonResponse({"error": "Invalid or expired token."}, status=401)
+        else:
+            print(response.text)
+            return JsonResponse({"error": "Failed to delete analysis."}, status=response.status_code)
+    except Exception as e:
+        print("Error:", e)
+        return JsonResponse({"error": "Error connecting to API."}, status=500)

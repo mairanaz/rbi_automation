@@ -12,4 +12,5 @@ urlpatterns=[
 
     path("preview/<str:analysis_id>/<str:file_type>/", views.preview_file, name="preview_file"),
 
+    path('delete/<str:analysis_id>/', views.delete_analysis, name='delete_analysis'),
 ]

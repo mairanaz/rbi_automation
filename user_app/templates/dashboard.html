@@ -7,10 +7,10 @@
 
 <style>
     .dashboard-card {
-        border-radius: 15px;
-        background: #fff;
-        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
-        transition: 0.3s;
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fc 100%);
+        border: 1px solid #e6e9f2;
+        border-radius: 18px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
     }
 
     .dashboard-card:hover {
@@ -38,6 +38,56 @@
         padding: 6px 12px;
         font-size: 0.85rem;
     }
+
+     .upload-section {
+    margin-top: 20px;
+  }
+
+  .upload-container {
+    display: flex;
+    align-items: center;
+    gap: 12px; 
+    flex-wrap: wrap; 
+  }
+
+  .upload-container .form-control {
+    flex: 1; 
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+  }
+
+  .btn-upload {
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 500;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    white-space: nowrap; 
+  }
+
+  .btn-upload:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(58, 123, 213, 0.3);
+    opacity: 0.95;
+  }
+
+  /* Responsif untuk mobile */
+  @media (max-width: 768px) {
+    .upload-container {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .btn-upload {
+      width: 100%;
+    }
+  }
+
 </style>
 
 <div class="container py-5">
@@ -49,19 +99,20 @@
 
         <h2>Welcome {{ request.session.email }}</h2>
 
-
-
-        <form id="uploadForm" enctype="multipart/form-data" method="POST" action="{% url 'upload_analyze' %}"
-            class="mt-4">
-            {% csrf_token %}
-            <div class="row g-3 align-items-center">
-                <div class="col-lg-9 col-md-8 col-sm-12">
-                    <label for="fileInput" class="form-label fw-semibold">Choose File (Image / PDF)</label>
-                    <input class="form-control form-control-lg" type="file" id="fileInput" name="uploaded_file"
-                        accept="image/*,.pdf" required>
-                </div>
-                <div class="col-lg-3 col-md-4 col-sm-12 d-grid">
-                    <button type="submit" class="btn btn-lg btn-primary mt-4 mt-md-0">
+        <form id="uploadForm" enctype="multipart/form-data" method="POST" action="{% url 'upload_analyze' %}" class="mt-4">
+        {% csrf_token %}
+            <div class="upload-section">
+                <label for="fileInput" class="form-label fw-semibold">Choose File (Image / PDF)</label>
+                <div class="upload-container">
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        name="uploaded_file" 
+                        accept="image/*,.pdf" 
+                        class="form-control" 
+                        required
+                    >
+                    <button type="submit" class="btn btn-upload btn-primary">
                         <i class="ri-upload-cloud-2-line me-2"></i> Upload & Generate
                     </button>
                 </div>
