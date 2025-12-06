@@ -13,8 +13,8 @@
             <div class="col-xxl-4 col-xl-5 col-lg-5 col-md-6 col-sm-8 col-12">
                 <div class="my-5 d-flex justify-content-center">
                     <a href="index.html">
-                        <img src="../assets/images/brand-logos/logo_rbi.jpg" alt="logo" class="desktop-logo">
-                        <img src="../assets/images/brand-logos/logo_rbi.jpg" alt="logo" class="desktop-dark">
+                        <!-- <img src="{% static 'assets/images/brand-logos/logo_rbi.jpg' %}" alt="logo" class="desktop-logo"  height="70"> -->
+                        
                     </a>
                 </div>
                 <div class="card custom-card">
@@ -55,7 +55,7 @@
                             </div>
                         </div>
                         <div class="text-center">
-                            <p class="fs-12 text-muted mt-3">Already have an account? <a href="sign-in-basic.html" class="text-info" >Sign In</a></p>
+                            <p class="fs-12 text-muted mt-3">Already have an account? <a href="{% url 'login' %}" class="text-info" >Sign In</a></p>
                         </div>
                         <div class="text-center my-3 authentication-barrier">
                             <span>OR</span>
