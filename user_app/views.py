@@ -1,4 +1,4 @@
-from django.shortcuts import render
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,8 +8,10 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from datetime import datetime
+from django.conf import settings
 
-# Create your views here.
+
+
 class LoginAPIView(APIView):
     def post(self, request):
         email = request.data.get('email')
@@ -26,8 +28,120 @@ class LoginAPIView(APIView):
                 "message": "Invalid email or password"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
+def google_callback(request):
+    token = request.GET.get("token")
+
+    if not token:
+        messages.error(request, "Google login failed.")
+        return redirect("login")
+
+   
+    request.session["api_token"] = token  
+
+   
+    try:
+        api_url = "http://localhost:6501/api/v1/auth/profile"
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.get(api_url, headers=headers, timeout=10)
+
+        if resp.status_code == 200:
+            data = resp.json()
+            user_data = data.get("user", {})
+            request.session["email"] = user_data.get("email") 
+    except Exception as e:
+        print("Error fetching user profile:", e)
+
+    messages.success(request, "Logged in with Google successfully.")
+    return redirect("dashboard")   
+
+def google_login(request):
+  
+    callback_url = request.build_absolute_uri(reverse("google_callback"))
+
+ 
+    base_api_url = f"{settings.RBI_API_BASE_URL}/auth/google"
+
+    params = {
+        "redirect_uri": callback_url,
+    }
+
+    # http://localhost:6501/api/v1/auth/google?redirect_uri=http://localhost:8000/auth/google/callback/
+    return redirect(f"{base_api_url}?{urlencode(params)}")
+
+   
 def user_registration(request):
-    return render(request,"registration.html")
+    if request.method == "POST":
+        first_name = request.POST.get("first_name")
+        last_name = request.POST.get("last_name")
+        name = f"{first_name} {last_name}".strip()
+        email = request.POST.get("email")
+        phone = request.POST.get("phone")
+
+        password = request.POST.get("password")
+        confirm_password = request.POST.get("confirm_password")
+        profile_image = request.FILES.get("profile_image")
+
+        
+        if password != confirm_password:
+            messages.error(request, "Password and confirm password not match.")
+            return redirect("registration")
+
+        if not all([name, email, phone, password]):
+            messages.error(request, "Please fill in all fields.")
+            return redirect("registration")
+
+        api_url = f"{settings.RBI_API_BASE_URL}/auth/register"
+
+      
+        payload = {
+            "name": name,
+            "email": email,
+            "password": password,
+            "phone": phone,
+        
+        }
+
+        files = None
+        if profile_image:
+            files = {
+                "profile_image": (
+                    profile_image.name,
+                    profile_image,
+                    profile_image.content_type,
+                )
+            }
+
+        try:
+            response = requests.post(
+                api_url,
+                data=payload,
+                files=files,
+                timeout=15,
+            )
+
+            print("DEBUG RBI URL:", api_url)
+            print("DEBUG status:", response.status_code)
+            print("DEBUG body:", response.text)
+
+            if response.status_code in (200, 201):
+                messages.success(request, "Account created successfully. Please login.")
+                return redirect("login")
+            else:
+                try:
+                    data = response.json()
+                    msg = data.get("message", "Registration failed.")
+                except Exception:
+                    msg = f"Registration failed. Status code: {response.status_code}"
+                messages.error(request, msg)
+                return redirect("registration")
+
+        except Exception as e:
+            print("Register error:", e)
+            messages.error(request, "Error connecting to registration API.")
+            return redirect("registration")
+
+    return render(request, "registration.html")
 
 def login_view(request):
     if request.method == "POST":
@@ -35,7 +149,7 @@ def login_view(request):
         password = request.POST.get("password")
 
        
-        api_url = "https://rbi-api.drivecloud.online/api/v1/auth/login"
+        api_url = f"{settings.RBI_API_BASE_URL}/auth/login"
 
     
         response = requests.post(api_url, json={
@@ -72,7 +186,7 @@ def dashboard(request):
         messages.warning(request, "Please log in first.")
         return redirect("login")
 
-    api_url = "https://rbi-api.drivecloud.online/api/v1/analysis/list?page=1&limit=10&status=completed"
+    api_url = f"{settings.RBI_API_BASE_URL}/analysis/list?page=1&limit=10&status=completed"
     headers = {
         "Authorization": f"Bearer {token}"
     }
@@ -123,6 +237,7 @@ def dashboard(request):
     return render(request, "dashboard.html", context)
 
 
+
 def upload_and_analyze(request):
     token = request.session.get("api_token")
     if not token:
@@ -153,15 +268,15 @@ def upload_and_analyze(request):
                 result = response.json()
                 data = result.get("data", {})
 
-                # Ambil ID sebenar
+                
                 analysis_id = data.get("analysis_id")
 
-                # ✅ Build URL proxy (guna Django sendiri)
+               
                 excel_url = f"/user/download/{analysis_id}/excel/"
                 pptx_url = f"/user/download/{analysis_id}/pptx/"
                 image_url = f"/user/download/{analysis_id}/image/"
 
-                # ✅ Ambil upload history semasa
+               
                 list_api = "https://rbi-api.drivecloud.online/api/v1/analysis/list?page=1&limit=10&status=completed"
                 list_response = requests.get(list_api, headers=headers)
                 upload_history = []
@@ -185,7 +300,7 @@ def upload_and_analyze(request):
                     "summary": data.get("summary"),
                     "processing_time": data.get("processing_time"),
                     "slides_count": data.get("slides_count"),
-                    "analysis_id": analysis_id,  # <— PENTING
+                    "analysis_id": analysis_id,  
                     "excel_url": excel_url,
                     "pptx_url": pptx_url,
                     "image_url": image_url,

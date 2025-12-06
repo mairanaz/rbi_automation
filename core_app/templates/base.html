@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- <title>{% block title %}RBI Automation{% endblock %}</title> -->
+  <title>{% block title %}RBI Automation{% endblock %}</title>
 
   <!-- 🔹 Favicon -->
   <link rel="icon" href="{% static 'assets/images/brand-logos/favicon.ico' %}" type="image/x-icon">
@@ -30,20 +30,26 @@
   <!-- 🔹 Bootstrap Icons (via CDN) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
 
+  {# tempat untuk CSS tambahan setiap page #}
+  {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body class="{% block body_class %}{% endblock %}">
 
   {% block header %}
-      {% include 'layouts/header.html' %}
+    {% include 'layouts/header.html' %}
   {% endblock header %}
 
   <!-- 🔹 Main Content -->
-  <main class="container-fluid py-4">
-    {% block content %}
-    <!-- Page-specific content goes here -->
-    {% endblock %}
+  {% block main %}
+  <main class="main-content app-content">
+    <div class="container-fluid py-4">
+      {% block content %}
+      <!-- Page-specific content goes here -->
+      {% endblock content %}
+    </div>
   </main>
+  {% endblock main %}
 
   <!-- 🔹 Footer -->
   {% include 'layouts/footer.html' %}
@@ -88,8 +94,7 @@
   <script src="{% static 'assets/js/validation.js' %}"></script>
 
   <!-- 🔹 Page-Specific Scripts -->
-  {% block scripts %}
-  {% endblock %}
+  {% block scripts %}{% endblock %}
 
 </body>
 </html>

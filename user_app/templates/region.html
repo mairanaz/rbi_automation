@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Select Region - RBI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+   
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="mb-1 fw-semibold">
+                {% if step_label %}
+                    {{ step_label }}
+                {% else %}
+                    Select Region
+                {% endif %}
+            </h2>
+            <p class="text-muted mb-0">
+                File: <span class="fw-semibold">{{ analysis.file_name }}</span> &middot;
+                Page <span class="fw-semibold">{{ page_number }}</span>
+            </p>
+        </div>
+        <div class="text-end">
+            <small class="text-muted d-block">
+                Step: 
+                {% if step_type == "design_data" %}
+                    Select Design Data region
+                {% elif step_type == "bom" %}
+                    Select Bill of Material region
+                {% elif step_type == "slide_image" %}
+                    Select image area for slide
+                {% else %}
+                    Select region on page
+                {% endif %}
+            </small>
+        </div>
+    </div>
+
+    
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+
+            <div class="row g-4">
+                
+                <div class="col-lg-4">
+                    <h6 class="fw-semibold mb-2">
+                        {% if step_type == "design_data" %}
+                            Please choose Design Data
+                        {% elif step_type == "bom" %}
+                            Please choose Bill Of Material
+                        {% elif step_type == "slide_image" %}
+                            Please choose the image you want in your slide
+                        {% else %}
+                            Please choose the region
+                        {% endif %}
+                    </h6>
+                    <ol class="small text-muted mb-3">
+                        <li>Use your mouse to drag a rectangle on the page preview.</li>
+                        <li>Adjust by drawing again if needed.</li>
+                        <li>Click <span class="fw-semibold">Confirm Selection</span> to continue.</li>
+                    </ol>
+
+                    <div class="alert alert-info small" role="alert">
+                        <i class="bi bi-info-circle me-1"></i>
+                        The selected region will be used by AI to extract
+                        {% if step_type == "design_data" %}Design Data table{% elif step_type == "bom" %}Bill of Material{% else %}the required content{% endif %}.
+                    </div>
+
+                    <div class="border rounded-3 p-3 bg-light">
+                        <p class="text-muted small mb-2">Current Selection (normalized coordinates)</p>
+                        <div class="small mb-1">
+                            <span class="text-muted">Page:</span>
+                            <span class="fw-semibold" id="coord-page">{{ page_number }}</span>
+                        </div>
+                        <div class="small">
+                            <span class="text-muted">x1:</span> <span id="coord-x1">-</span> &middot;
+                            <span class="text-muted">y1:</span> <span id="coord-y1">-</span> <br>
+                            <span class="text-muted">x2:</span> <span id="coord-x2">-</span> &middot;
+                            <span class="text-muted">y2:</span> <span id="coord-y2">-</span>
+                        </div>
+                    </div>
+                </div>
+
+             
+                <div class="col-lg-8">
+                    <div class="mb-2 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-light text-dark border">
+                                <i class="bi bi-display me-1"></i> Page Preview
+                            </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 small text-muted">
+                         
+                            {% if prev_page_url %}
+                                <a href="{{ prev_page_url }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-chevron-left"></i> Prev Page
+                                </a>
+                            {% endif %}
+                            {% if next_page_url %}
+                                <a href="{{ next_page_url }}" class="btn btn-sm btn-outline-secondary">
+                                    Next Page <i class="bi bi-chevron-right"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                   
+                    <div class="border rounded-3 shadow-sm overflow-hidden bg-white">
+                        
+                        <div class="px-3 py-2 border-bottom bg-light d-flex align-items-center gap-2">
+                            <span class="rounded-circle bg-danger d-inline-block" style="width:10px; height:10px;"></span>
+                            <span class="rounded-circle bg-warning d-inline-block" style="width:10px; height:10px;"></span>
+                            <span class="rounded-circle bg-success d-inline-block" style="width:10px; height:10px;"></span>
+                            <span class="ms-2 text-muted small">PDF Preview - Page {{ page_number }}</span>
+                        </div>
+
+                      
+                        <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center small">
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="zoom-out-btn">
+                                    <i class="bi bi-zoom-out"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="zoom-in-btn">
+                                    <i class="bi bi-zoom-in"></i>
+                                </button>
+                                <span class="text-muted ms-2" id="zoom-label">100%</span>
+                            </div>
+                            <div class="text-muted">
+                                Click and drag to select region
+                            </div>
+                        </div>
+
+                       
+                        <div class="p-2">
+                            <div class="position-relative d-inline-block" id="viewer-container">
+                                <img id="pdf-image"
+                                     src="{{ page_image_url }}"
+                                     alt="PDF Page {{ page_number }}"
+                                     class="img-fluid"
+                                     draggable="false">
+
+                                
+                                <div id="selection-overlay"
+                                     class="position-absolute top-0 start-0 w-100 h-100"
+                                     style="cursor: crosshair;"></div>
+
+                                
+                                <div id="selection-rect"
+                                     class="position-absolute border border-primary bg-primary bg-opacity-25 d-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                 
+                    <form method="post" class="mt-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="page_number" value="{{ page_number }}">
+                        <input type="hidden" id="input-x1" name="x1">
+                        <input type="hidden" id="input-y1" name="y1">
+                        <input type="hidden" id="input-x2" name="x2">
+                        <input type="hidden" id="input-y2" name="y2">
+                        <input type="hidden" name="step_type" value="{{ step_type }}">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    onclick="window.history.back();">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-danger" id="reset-selection-btn">
+                                    <i class="bi bi-x-circle me-1"></i> Reset Selection
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="confirm-btn" disabled>
+                                    <i class="bi bi-check2-circle me-1"></i> Confirm Selection
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const overlay = document.getElementById('selection-overlay');
+    const rectEl = document.getElementById('selection-rect');
+    const viewerContainer = document.getElementById('viewer-container');
+    const confirmBtn = document.getElementById('confirm-btn');
+    const resetBtn = document.getElementById('reset-selection-btn');
+
+    const inputX1 = document.getElementById('input-x1');
+    const inputY1 = document.getElementById('input-y1');
+    const inputX2 = document.getElementById('input-x2');
+    const inputY2 = document.getElementById('input-y2');
+
+    const coordX1 = document.getElementById('coord-x1');
+    const coordY1 = document.getElementById('coord-y1');
+    const coordX2 = document.getElementById('coord-x2');
+    const coordY2 = document.getElementById('coord-y2');
+
+    const zoomLabel = document.getElementById('zoom-label');
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const pdfImage = document.getElementById('pdf-image');
+
+    let isDrawing = false;
+    let startX = 0, startY = 0;
+    let endX = 0, endY = 0;
+    let zoom = 1.0;
+
+    function updateZoom() {
+        pdfImage.style.transform = 'scale(' + zoom + ')';
+        pdfImage.style.transformOrigin = 'top left';
+        zoomLabel.textContent = Math.round(zoom * 100) + '%';
+        
+    }
+
+    zoomInBtn.addEventListener('click', function () {
+        zoom = Math.min(zoom + 0.1, 2.0);
+        updateZoom();
+    });
+
+    zoomOutBtn.addEventListener('click', function () {
+        zoom = Math.max(zoom - 0.1, 0.5);
+        updateZoom();
+    });
+
+    function resetSelection() {
+        rectEl.classList.add('d-none');
+        inputX1.value = '';
+        inputY1.value = '';
+        inputX2.value = '';
+        inputY2.value = '';
+        coordX1.textContent = '-';
+        coordY1.textContent = '-';
+        coordX2.textContent = '-';
+        coordY2.textContent = '-';
+        confirmBtn.disabled = true;
+    }
+
+    resetBtn.addEventListener('click', function () {
+        resetSelection();
+    });
+
+    overlay.addEventListener('mousedown', function (e) {
+        const bounds = overlay.getBoundingClientRect();
+        isDrawing = true;
+
+        const relX = (e.clientX - bounds.left) / bounds.width;
+        const relY = (e.clientY - bounds.top) / bounds.height;
+
+        startX = Math.min(Math.max(relX, 0), 1);
+        startY = Math.min(Math.max(relY, 0), 1);
+        endX = startX;
+        endY = startY;
+
+        rectEl.classList.remove('d-none');
+        updateRectElement();
+        e.preventDefault();
+    });
+
+    overlay.addEventListener('mousemove', function (e) {
+        if (!isDrawing) return;
+        const bounds = overlay.getBoundingClientRect();
+        const relX = (e.clientX - bounds.left) / bounds.width;
+        const relY = (e.clientY - bounds.top) / bounds.height;
+
+        endX = Math.min(Math.max(relX, 0), 1);
+        endY = Math.min(Math.max(relY, 0), 1);
+        updateRectElement();
+        e.preventDefault();
+    });
+
+    overlay.addEventListener('mouseup', function (e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+        saveSelection();
+        e.preventDefault();
+    });
+
+    overlay.addEventListener('mouseleave', function (e) {
+        if (isDrawing) {
+            isDrawing = false;
+            saveSelection();
+        }
+    });
+
+    function updateRectElement() {
+        const xMin = Math.min(startX, endX);
+        const xMax = Math.max(startX, endX);
+        const yMin = Math.min(startY, endY);
+        const yMax = Math.max(startY, endY);
+
+        rectEl.style.left = (xMin * 100) + '%';
+        rectEl.style.top = (yMin * 100) + '%';
+        rectEl.style.width = ((xMax - xMin) * 100) + '%';
+        rectEl.style.height = ((yMax - yMin) * 100) + '%';
+    }
+
+    function saveSelection() {
+        const xMin = Math.min(startX, endX);
+        const xMax = Math.max(startX, endX);
+        const yMin = Math.min(startY, endY);
+        const yMax = Math.max(startY, endY);
+
+       
+        if ((xMax - xMin) < 0.01 || (yMax - yMin) < 0.01) {
+            resetSelection();
+            return;
+        }
+
+        inputX1.value = xMin.toFixed(4);
+        inputY1.value = yMin.toFixed(4);
+        inputX2.value = xMax.toFixed(4);
+        inputY2.value = yMax.toFixed(4);
+
+        coordX1.textContent = xMin.toFixed(3);
+        coordY1.textContent = yMin.toFixed(3);
+        coordX2.textContent = xMax.toFixed(3);
+        coordY2.textContent = yMax.toFixed(3);
+
+        confirmBtn.disabled = false;
+    }
+
+   
+    updateZoom();
+});
+</script>
+{% endblock content %}

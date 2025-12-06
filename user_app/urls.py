@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns=[
     path('', views.user_registration, name='registration'),
+    path("google/callback/", views.google_callback, name="google_callback"),
+    path("auth/google/", views.google_login, name="google_login"),
     path('login/',views.login_view, name='login'),
     path('dashboard/', views.dashboard,name='dashboard'),
     path('upload/', views.upload_and_analyze, name='upload_analyze'),

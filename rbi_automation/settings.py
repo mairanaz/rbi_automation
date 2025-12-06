@@ -23,6 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-30&yw)1928249_p%izkc%iwr-n(x%&+ci@gp2!8tmo5ye9!d$r'
 
+# settings.py
+# RBI API settings
+RBI_API_BASE_URL = "http://localhost:6501/api/v1"
+RBI_API_KEY = ""  # buat masa ni kosong dulu, backend kita tak perlukan token untuk /auth/register
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
