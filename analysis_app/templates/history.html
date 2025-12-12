@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Analysis History{% endblock %}
+
+{% block content %}
+{% include 'layouts/header.html' %}
+
+<style>
+    .page-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .page-title {
+        font-weight: 600;
+        font-size: 1.4rem;
+    }
+
+    .badge-status {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+    }
+
+    .badge-pending { background-color: #f6c23e; color: #212529; }
+    .badge-in-progress { background-color: #36b9cc; }
+    .badge-awaiting { background-color: #858796; }
+    .badge-ready { background-color: #4e73df; }
+    .badge-completed { background-color: #1cc88a; }
+    .badge-failed { background-color: #e74a3b; }
+
+    .table thead th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+        border-bottom-width: 1px;
+    }
+
+    .table td {
+        vertical-align: middle;
+        font-size: 0.9rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+
+  
+    <div class="d-flex justify-content-between align-items-center page-header">
+        <div>
+            <h1 class="page-title mb-1">Analysis History</h1>
+            <p class="text-muted mb-0">
+                Senarai semua PDF yang telah dianalisis oleh akaun anda.
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'analysis_app:upload' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> New Analysis
+            </a>
+        </div>
+    </div>
+
+    
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+
+            {% if analyses %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th>File Name</th>
+                                <th style="width: 18%;">Created At</th>
+                                <th style="width: 15%;">Status</th>
+                                <th style="width: 18%;">Files</th>
+                                <th style="width: 12%;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for analysis in analyses %}
+                                <tr>
+                                    <td>{{ forloop.counter0|add:analyses.start_index }}</td>
+
+                                    <td>
+                                        <div class="fw-semibold">
+                                            {{ analysis.original_filename }}
+                                        </div>
+                                        {% if analysis.external_user_email or analysis.external_user_name %}
+                                            <small class="text-muted">
+                                                Uploaded by:
+                                                {% if analysis.external_user_name %}
+                                                    {{ analysis.external_user_name }}
+                                                {% else %}
+                                                    {{ analysis.external_user_email }}
+                                                {% endif %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {{ analysis.created_at|date:"d M Y, h:i A" }}
+                                    </td>
+
+                                    <td>
+                                        {% with status=analysis.status %}
+                                            {% if status == "completed" %}
+                                                <span class="badge badge-status badge-completed">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% elif status == "in_progress" %}
+                                                <span class="badge badge-status badge-in-progress">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% elif status == "pending" %}
+                                                <span class="badge badge-status badge-pending">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% elif status == "awaiting_regions" %}
+                                                <span class="badge badge-status badge-awaiting">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% elif status == "ready_to_generate" %}
+                                                <span class="badge badge-status badge-ready">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% elif status == "failed" %}
+                                                <span class="badge badge-status badge-failed">
+                                                    {{ analysis.get_status_display }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge badge-status bg-secondary">
+                                                    {{ analysis.status }}
+                                                </span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+
+                                    <td>
+                                        {% if analysis.workbook_path %}
+                                            <a href="/media/{{ analysis.workbook_path }}" class="btn btn-sm btn-outline-success mb-1">
+                                                <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                                            </a>
+                                        {% endif %}
+                                        {% if analysis.pptx_path %}
+                                            <a href="/media/{{ analysis.pptx_path }}" class="btn btn-sm btn-outline-warning mb-1">
+                                                <i class="bi bi-file-earmark-slides me-1"></i> PPTX
+                                            </a>
+                                        {% endif %}
+                                        {% if not analysis.workbook_path and not analysis.pptx_path %}
+                                            <span class="text-muted small">Not generated yet</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-end">
+                                        <a href="{% url 'analysis_app:analysis_detail' analysis.id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye me-1"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            
+                {% if analyses.has_other_pages %}
+                    <div class="card-footer bg-white border-0">
+                        <nav aria-label="History pagination">
+                            <ul class="pagination justify-content-end mb-0">
+                                {% if analyses.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ analyses.previous_page_number }}">Previous</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">Previous</span>
+                                    </li>
+                                {% endif %}
+
+                                {% for num in analyses.paginator.page_range %}
+                                    {% if num == analyses.number %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > analyses.number|add:"-3" and num < analyses.number|add:"3" %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if analyses.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ analyses.next_page_number }}">Next</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">Next</span>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-folder2-open text-secondary"></i>
+                    <h5 class="mt-2">No analysis yet</h5>
+                    <p class="mb-3">
+                        You haven't uploaded any PDF for analysis.  
+                        Click the button below to start a new analysis.
+                    </p>
+                    <a href="{% url 'analysis_app:upload' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> New Analysis
+                    </a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

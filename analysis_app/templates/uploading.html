@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload New Analysis{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            
+            <div class="text-center mb-4">
+                <h2 class="fw-bold text-primary">New Analysis Project</h2>
+                <p class="text-muted">Upload your technical drawing PDF to begin extraction.</p>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                        {% if message.tags == 'error' %}
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% else %}
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                        {% endif %}
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-body p-5">
+                    
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4 text-center">
+                            <div class="mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-file-earmark-pdf text-danger" viewBox="0 0 16 16">
+                                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L9.5 3z"/>
+                                    <path d="M4.603 14.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.771.08-1.177.313-.611 1.127-1.319 1.951-1.319.495 0 .89.23 1.108.47.199.215.312.456.312.75 0 .546-.38 1.14-.984 1.488-.22.126-.45.204-.636.254a4.34 4.34 0 0 1-.893.065zm2.934-4.898c.16-.07.382-.09.566-.09.395 0 .84.148 1.15.524.234.286.37.66.37 1.04 0 .82-.55 1.568-1.353 1.568-.458 0-.853-.266-1.077-.664-.175-.31-.225-.71-.122-1.228.064-.325.216-.89.466-1.15z"/>
+                                </svg>
+                            </div>
+                            <h5 class="card-title">Select PDF Document</h5>
+                            <p class="card-text small text-muted">Supported format: .pdf only</p>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="pdfFile" class="form-label fw-bold">Upload File</label>
+                            
+                            <input class="form-control form-control-lg" type="file" id="pdfFile" name="pdf_file" accept="application/pdf" required>
+                            
+                            <div class="form-text">
+                                Maximum file size: 10MB. Make sure the PDF is clear.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <span id="btnText">Start Processing</span>
+                                <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'analysis_app:history' %}" class="text-decoration-none text-muted small">
+                    <i class="bi bi-arrow-left"></i> Back to History
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+ 
+    .card {
+        transition: transform 0.2s;
+    }
+    .form-control-lg {
+        border-radius: 10px;
+    }
+</style>
+
+<script>
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        
+        var btn = document.getElementById('submitBtn');
+        var btnText = document.getElementById('btnText');
+        var spinner = document.getElementById('btnSpinner');
+        var input = document.getElementById('pdfFile');
+
+        
+        if (input.files.length > 0) {
+           
+            btn.disabled = true;
+            
+       
+            btnText.textContent = "Processing PDF (Please wait)...";
+            spinner.classList.remove('d-none');
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Review Analysis{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h3 class="mb-3">Review Regions & Generate</h3>
+    <p class="text-muted mb-4">
+        File: <strong>{{ analysis.original_filename }}</strong>
+    </p>
+
+    <div class="row g-3">
+
+       
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">Design Data</h6>
+                </div>
+                <div class="card-body">
+                    {% if design_preview_url %}
+                        <p class="small text-muted mb-2">
+                            Page {{ design_data_region.page.page_number }}
+                        </p>
+                        <img src="{{ design_preview_url }}" alt="Design Data Preview"
+                             class="img-fluid rounded border">
+                    {% else %}
+                        <p class="small text-muted mb-0">
+                            No Design Data region selected yet.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+       
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0">Bill Of Material</h6>
+                </div>
+                <div class="card-body">
+                    {% if bom_preview_url %}
+                        <p class="small text-muted mb-2">
+                            Page {{ bom_region.page.page_number }}
+                        </p>
+                        <img src="{{ bom_preview_url }}" alt="BOM Preview"
+                             class="img-fluid rounded border">
+                    {% else %}
+                        <p class="small text-muted mb-0">
+                            No BOM region selected yet.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+      
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Slide Images</h6>
+                    <span class="badge bg-light text-muted border">
+                        {{ slide_regions|length }} selected
+                    </span>
+                </div>
+                <div class="card-body">
+                    {% if slide_previews %}
+                        {% for s in slide_previews %}
+                            <div class="mb-2">
+                                <p class="small text-muted mb-1">Page {{ s.page }}</p>
+                                <img src="{{ s.url }}" class="img-fluid rounded border mb-2">
+                            </div>
+                        {% endfor %}
+                        {% if slide_regions|length > slide_previews|length %}
+                            <p class="small text-muted mb-0">
+                                Showing {{ slide_previews|length }} of {{ slide_regions|length }} slide regions.
+                            </p>
+                        {% endif %}
+
+                    {% else %}
+                        <p class="small text-muted mb-0">
+                            No slide images selected yet.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+ 
+    <div class="mt-4">
+        <form method="post" action="{% url 'analysis_app:generate_analysis' analysis.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Generate Excel & PowerPoint
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

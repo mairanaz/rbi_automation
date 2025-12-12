@@ -36,24 +36,47 @@ def google_callback(request):
         messages.error(request, "Google login failed.")
         return redirect("login")
 
-   
+    # Simpan token dalam session
     request.session["api_token"] = token  
 
-   
     try:
-        api_url = "http://localhost:6501/api/v1/auth/profile"
+        # Guna base URL dari settings supaya senang tukar env
+        api_url = f"{settings.RBI_API_BASE_URL}/auth/profile"
         headers = {"Authorization": f"Bearer {token}"}
         resp = requests.get(api_url, headers=headers, timeout=10)
 
         if resp.status_code == 200:
             data = resp.json()
-            user_data = data.get("user", {})
-            request.session["email"] = user_data.get("email") 
+            user_data = data.get("user", {})  # datang dari verifyToken JWT { id, email, role }
+
+            email = user_data.get("email")
+            role = user_data.get("role")
+            user_id = user_data.get("id")
+
+            # simpan email untuk display
+            request.session["email"] = email
+
+            # ‼️ PENTING: samakan struktur dengan login_view
+            request.session["rbi_user"] = {
+                "id": user_id,
+                "email": email,
+                "name": None,   # verifyToken tak bagi nama, tak apa kalau None
+                "role": role,
+            }
+
+        else:
+            print("Profile error:", resp.text)
+            messages.error(request, "Failed to fetch user profile from API.")
+            return redirect("login")
+
     except Exception as e:
         print("Error fetching user profile:", e)
+        messages.error(request, "Error connecting to profile API.")
+        return redirect("login")
 
     messages.success(request, "Logged in with Google successfully.")
-    return redirect("dashboard")   
+    return redirect("dashboard")
+
 
 def google_login(request):
   
@@ -148,22 +171,38 @@ def login_view(request):
         email = request.POST.get("email")
         password = request.POST.get("password")
 
-       
         api_url = f"{settings.RBI_API_BASE_URL}/auth/login"
 
-    
-        response = requests.post(api_url, json={
-            "email": email,
-            "password": password
-        })
+        try:
+            response = requests.post(api_url, json={
+                "email": email,
+                "password": password
+            }, timeout=10)
+        except Exception as e:
+            messages.error(request, f"Cannot connect to RBI server: {e}")
+            return redirect("login")
 
         if response.status_code == 200:
             result = response.json()
-            token = result.get("token")
 
-          
+            # ✅ ikut response sebenar RBI_SERVER awak
+            # contoh kalau response = { "token": "...", "user": { ... } }
+            token = result.get("token")
+            user_data = result.get("user", {}) or {}
+
+            # 🔐 simpan token untuk semua request lain (dashboard, dll.)
             request.session["api_token"] = token
-            request.session["email"] = email
+
+            # 📩 simpan email untuk convenience
+            request.session["email"] = user_data.get("email") or email
+
+            # 👤 simpan full info user RBI dalam session
+            request.session["rbi_user"] = {
+                "id": user_data.get("id"),
+                "email": user_data.get("email") or email,
+                "name": user_data.get("fullName") or user_data.get("name"),
+                "role": user_data.get("role"),
+            }
 
             messages.success(request, "Login successful!")
             return redirect("dashboard")
@@ -179,7 +218,6 @@ def login_view(request):
             return redirect("login")
 
     return render(request, "login.html")
-
 def dashboard(request):
     token = request.session.get("api_token")
     if not token:
