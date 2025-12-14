@@ -11,7 +11,7 @@ class Analysis(models.Model):
         ("failed", "Failed"),
     ]
 
-    # boleh kekalkan kalau nak guna juga Django user satu hari nanti
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -20,7 +20,7 @@ class Analysis(models.Model):
         blank=True,
     )
 
-    # 🆕 User dari RBI_SERVER
+   
     external_user_id = models.PositiveIntegerField(null=True, blank=True)
     external_user_email = models.CharField(max_length=255, null=True, blank=True)
     external_user_name = models.CharField(max_length=255, null=True, blank=True)
@@ -33,6 +33,7 @@ class Analysis(models.Model):
     workbook_path = models.CharField(max_length=500, null=True, blank=True)
     pptx_path = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
 
     def __str__(self):
         return f"{self.original_filename} ({self.id})"
@@ -68,7 +69,7 @@ class RegionSelection(models.Model):
     )
     step_type = models.CharField(max_length=32, choices=STEP_TYPE_CHOICES)
 
-    # normalized coordinates 0–1
+
     x1 = models.FloatField()
     y1 = models.FloatField()
     x2 = models.FloatField()
@@ -78,8 +79,7 @@ class RegionSelection(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # untuk Design Data & BOM, kita expect satu je per analysis
-        # slide_image boleh banyak (kalau next time nak multi selection)
+    
         indexes = [
             models.Index(fields=["analysis", "step_type"]),
         ]

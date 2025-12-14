@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Masterfile{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+ 
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="d-flex align-items-center">
+                    <div class="bg-info bg-opacity-10 rounded-3 p-2 me-3">
+                        <i class="bi bi-table text-info fs-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 fw-bold">Edit Masterfile</h3>
+                        <p class="text-muted mb-0 small">
+                            <i class="bi bi-file-pdf text-danger me-1"></i>
+                            <strong>{{ analysis.original_filename }}</strong>
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <a href="{% url 'analysis_app:analysis_detail' analysis.id %}" 
+                       class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Detail
+                    </a>
+                </div>
+            </div>
+
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 mb-3" role="alert">
+                        <div class="d-flex align-items-center">
+                            {% if message.tags == 'error' or message.tags == 'danger' %}
+                                <i class="bi bi-exclamation-triangle-fill me-3 fs-5"></i>
+                            {% else %}
+                                <i class="bi bi-check-circle-fill me-3 fs-5"></i>
+                            {% endif %}
+                            <div class="flex-grow-1">{{ message }}</div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            
+            <div class="card border-0 shadow-sm bg-info bg-opacity-10 border-info border-opacity-25 mb-4">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <i class="bi bi-info-circle-fill text-info fs-3"></i>
+                        </div>
+                        <div class="col">
+                            <p class="mb-0 small">
+                                <strong>Editing Instructions:</strong> All existing rows (including previous equipment/history) from the Masterfile are shown below. 
+                                You can edit any cell directly. Click <strong class="text-info">Save Changes</strong> to update the Excel file on the server.
+                            </p>
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge bg-info px-3 py-2">
+                                <i class="bi bi-grid-3x3 me-1"></i>
+                                <span id="row-count">0</span> Rows
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-info bg-gradient text-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white bg-opacity-25 rounded-2 p-2 me-3">
+                                <i class="bi bi-spreadsheet fs-5"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0 fw-semibold">Masterfile Data Grid</h5>
+                                <small class="opacity-90">Click any cell to edit</small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-light" id="undo-btn" title="Undo">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Undo
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" id="redo-btn" title="Redo">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Redo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0 bg-light">
+                    <form id="masterfile-form" method="post" action="{% url 'analysis_app:save_masterfile' analysis.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="table_data" id="id_table_data">
+
+                       
+                        <div id="masterfile-grid" class="p-3"></div>
+
+                       
+                        <div class="border-top bg-white p-3">
+                            <div class="row align-items-center g-3">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 py-2">
+                                            <i class="bi bi-pencil-square me-1"></i>
+                                            <span id="edit-count">0</span> Changes Made
+                                        </span>
+                                        <small class="text-muted" id="last-edit-time"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <div class="d-flex gap-2 justify-content-md-end">
+                                        <a href="{% url 'analysis_app:analysis_detail' analysis.id %}" 
+                                           class="btn btn-outline-secondary">
+                                            <i class="bi bi-x-circle me-2"></i>Cancel
+                                        </a>
+                                        <button type="button" class="btn btn-outline-danger" id="reset-btn">
+                                            <i class="bi bi-arrow-clockwise me-2"></i>Reset All
+                                        </button>
+                                        <button type="submit" class="btn btn-info shadow-sm fw-semibold px-4" id="save-btn">
+                                            <i class="bi bi-save me-2"></i>Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-light">
+                <div class="card-body py-2">
+                    <div class="d-flex align-items-center justify-content-center gap-4 flex-wrap small text-muted">
+                        <span><kbd>Ctrl + Z</kbd> Undo</span>
+                        <span><kbd>Ctrl + Y</kbd> Redo</span>
+                        <span><kbd>Tab</kbd> Next cell</span>
+                        <span><kbd>Enter</kbd> Edit cell</span>
+                        <span><kbd>Ctrl + C</kbd> Copy</span>
+                        <span><kbd>Ctrl + V</kbd> Paste</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/handsontable@14/dist/handsontable.full.min.css">
+<script src="https://cdn.jsdelivr.net/npm/handsontable@14/dist/handsontable.full.min.js"></script>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0aa8d1 100%) !important;
+    }
+
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .rounded-3 {
+        border-radius: 0.75rem !important;
+    }
+
+   
+    #masterfile-grid {
+        background: white;
+        border-radius: 0.5rem;
+    }
+
+    .handsontable {
+        color: #212529;
+        font-size: 0.875rem;
+    }
+
+    .handsontable th {
+        background-color: #0dcaf0 !important;
+        color: white !important;
+        font-weight: 600;
+    }
+
+    .handsontable td {
+        border-color: #dee2e6 !important;
+    }
+
+    .handsontable td.current {
+        background-color: rgba(13, 202, 240, 0.1) !important;
+    }
+
+    .handsontable td.area {
+        background-color: rgba(13, 202, 240, 0.05) !important;
+    }
+
+    
+    kbd {
+        background-color: #212529;
+        color: white;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-family: monospace;
+    }
+
+   
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(13, 202, 240, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(13, 202, 240, 0); }
+    }
+
+    .btn-info.has-changes {
+        animation: pulse 2s infinite;
+    }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let initialData = [];
+    let changeCount = 0;
+    let hot;
+
+   
+    try {
+        initialData = JSON.parse('{{ table_data_json|escapejs }}');
+        console.log("Initial data loaded, rows:", initialData.length);
+        document.getElementById('row-count').textContent = initialData.length;
+    } catch (err) {
+        console.error("Failed to parse table_data_json:", err);
+        initialData = [];
+    }
+
+    
+    const originalData = JSON.parse(JSON.stringify(initialData));
+
+    
+    const container = document.getElementById("masterfile-grid");
+    hot = new Handsontable(container, {
+        data: initialData,
+        rowHeaders: true,
+        colHeaders: true,
+        stretchH: "all",
+        height: 500,
+        licenseKey: "non-commercial-and-evaluation",
+        contextMenu: true,
+        manualColumnResize: true,
+        manualRowResize: true,
+        undo: true,
+        afterChange: function(changes, source) {
+            if (source !== 'loadData') {
+                changeCount++;
+                updateChangeCounter();
+                updateLastEditTime();
+            }
+        }
+    });
+
+    
+    const form = document.getElementById("masterfile-form");
+    const hiddenInput = document.getElementById("id_table_data");
+    const saveBtn = document.getElementById("save-btn");
+    const resetBtn = document.getElementById("reset-btn");
+    const undoBtn = document.getElementById("undo-btn");
+    const redoBtn = document.getElementById("redo-btn");
+    const editCountEl = document.getElementById("edit-count");
+    const lastEditTimeEl = document.getElementById("last-edit-time");
+
+   
+    function updateChangeCounter() {
+        editCountEl.textContent = changeCount;
+        if (changeCount > 0) {
+            saveBtn.classList.add('has-changes');
+        } else {
+            saveBtn.classList.remove('has-changes');
+        }
+    }
+
+   
+    function updateLastEditTime() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        lastEditTimeEl.textContent = `Last edited: ${timeStr}`;
+    }
+
+   
+    undoBtn.addEventListener('click', function() {
+        hot.undo();
+    });
+
+    
+    redoBtn.addEventListener('click', function() {
+        hot.redo();
+    });
+
+    
+    resetBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to reset all changes? This will restore the original data.')) {
+            hot.loadData(JSON.parse(JSON.stringify(originalData)));
+            changeCount = 0;
+            updateChangeCounter();
+            lastEditTimeEl.textContent = '';
+        }
+    });
+
+   
+    form.addEventListener("submit", function (e) {
+        const gridData = hot.getData();
+        console.log("Submitting rows:", gridData.length);
+        hiddenInput.value = JSON.stringify(gridData);
+
+        if (!hiddenInput.value) {
+            e.preventDefault();
+            alert("Table data is empty, please try again.");
+            return;
+        }
+
+        
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    });
+
+    
+    window.addEventListener('beforeunload', function(e) {
+        if (changeCount > 0) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+   
+    form.addEventListener('submit', function() {
+        changeCount = 0;
+    });
+});
+</script>
+{% endblock %}

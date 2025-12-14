@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from datetime import datetime
 from django.conf import settings
-
+from django.urls import reverse
 
 
 class LoginAPIView(APIView):
@@ -36,31 +36,31 @@ def google_callback(request):
         messages.error(request, "Google login failed.")
         return redirect("login")
 
-    # Simpan token dalam session
+   
     request.session["api_token"] = token  
 
     try:
-        # Guna base URL dari settings supaya senang tukar env
+        
         api_url = f"{settings.RBI_API_BASE_URL}/auth/profile"
         headers = {"Authorization": f"Bearer {token}"}
         resp = requests.get(api_url, headers=headers, timeout=10)
 
         if resp.status_code == 200:
             data = resp.json()
-            user_data = data.get("user", {})  # datang dari verifyToken JWT { id, email, role }
+            user_data = data.get("user", {})  
 
             email = user_data.get("email")
             role = user_data.get("role")
             user_id = user_data.get("id")
 
-            # simpan email untuk display
+           
             request.session["email"] = email
 
-            # ‼️ PENTING: samakan struktur dengan login_view
+           
             request.session["rbi_user"] = {
                 "id": user_id,
                 "email": email,
-                "name": None,   # verifyToken tak bagi nama, tak apa kalau None
+                "name": None,  
                 "role": role,
             }
 
@@ -75,7 +75,7 @@ def google_callback(request):
         return redirect("login")
 
     messages.success(request, "Logged in with Google successfully.")
-    return redirect("dashboard")
+    return redirect("analysis_app:upload")
 
 
 def google_login(request):
@@ -205,7 +205,7 @@ def login_view(request):
             }
 
             messages.success(request, "Login successful!")
-            return redirect("dashboard")
+            return redirect("upload")
 
         else:
             try:

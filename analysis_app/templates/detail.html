@@ -4,256 +4,423 @@
 {% block title %}Analysis Detail: {{ analysis.original_filename }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
+<div class="container-fluid py-4">
+
     
     <div class="mb-4">
-        <a href="{% url 'analysis_app:history' %}" class="text-decoration-none text-muted">
-            <i class="bi bi-arrow-left"></i> Back to History
+        <a href="{% url 'analysis_app:history' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to History
         </a>
     </div>
 
+   
     <div class="row align-items-center mb-4">
-        <div class="col-md-8">
-            <h2 class="fw-bold text-dark">
-                <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>
-                {{ analysis.original_filename }}
-            </h2>
-            <p class="text-muted mb-0">Created on: {{ analysis.created_at|date:"d M Y, h:i A" }}</p>
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center">
+                <div class="bg-info bg-opacity-10 rounded-3 p-3 me-3">
+                    <i class="bi bi-file-earmark-bar-graph text-info" style="font-size: 2rem;"></i>
+                </div>
+                <div>
+                    <h2 class="fw-bold text-dark mb-1">{{ analysis.original_filename }}</h2>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-calendar3 me-1"></i>Created on {{ analysis.created_at|date:"d M Y, h:i A" }}
+                    </p>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4 text-md-end">
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
             {% if analysis.status == 'completed' %}
-                <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">
-                    <i class="bi bi-check-circle me-1"></i> Completed
-                </span>
+            <span class="badge bg-success fs-6 px-4 py-3 rounded-3 shadow-sm">
+                <i class="bi bi-check-circle-fill me-2"></i>Completed
+            </span>
             {% elif analysis.status == 'in_progress' %}
-                <span class="badge bg-warning text-dark fs-6 px-3 py-2 rounded-pill">
-                    <span class="spinner-border spinner-border-sm me-1"></span> Processing...
-                </span>
+            <span class="badge bg-warning text-dark fs-6 px-4 py-3 rounded-3 shadow-sm">
+                <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+            </span>
             {% elif analysis.status == 'failed' %}
-                <span class="badge bg-danger fs-6 px-3 py-2 rounded-pill">
-                    <i class="bi bi-x-circle me-1"></i> Failed
-                </span>
+            <span class="badge bg-danger fs-6 px-4 py-3 rounded-3 shadow-sm">
+                <i class="bi bi-x-circle-fill me-2"></i>Failed
+            </span>
+            {% elif analysis.status == 'awaiting_excel_review' %}
+            <span class="badge bg-info fs-6 px-4 py-3 rounded-3 shadow-sm">
+                <i class="bi bi-pencil-square me-2"></i>Awaiting Review
+            </span>
             {% else %}
-                <span class="badge bg-secondary fs-6 px-3 py-2 rounded-pill">
-                    <i class="bi bi-hourglass-split me-1"></i> {{ analysis.get_status_display }}
-                </span>
+            <span class="badge bg-secondary fs-6 px-4 py-3 rounded-3 shadow-sm">
+                <i class="bi bi-hourglass-split me-2"></i>{{ analysis.get_status_display }}
+            </span>
             {% endif %}
         </div>
     </div>
 
+  
     {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} shadow-sm">
-                {{ message }}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert">
+                <div class="d-flex align-items-center">
+                    {% if message.tags == 'error' or message.tags == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-5"></i>
+                    {% elif message.tags == 'success' %}
+                        <i class="bi bi-check-circle-fill me-3 fs-5"></i>
+                    {% else %}
+                        <i class="bi bi-info-circle-fill me-3 fs-5"></i>
+                    {% endif %}
+                    <div class="flex-grow-1">{{ message }}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
             </div>
-        {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
     {% endif %}
 
-    <div class="row">
-        <div class="col-lg-4 mb-4">
+    <div class="row g-4">
+        
+        <div class="col-lg-4">
+
             
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="bi bi-lightning-charge-fill text-warning me-2"></i> Actions
+            <div class="card shadow-sm border-0 rounded-3 mb-4">
+                <div class="card-header bg-info bg-gradient text-white border-0 py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-25 rounded-2 p-2 me-2">
+                            <i class="bi bi-lightning-charge-fill fs-5"></i>
+                        </div>
+                        <h6 class="mb-0 fw-semibold">Quick Actions</h6>
+                    </div>
                 </div>
                 <div class="card-body">
                     {% if analysis.status == 'completed' %}
-                        <div class="d-grid gap-2">
-                            {% if workbook_url %}
-                            <a href="{{ workbook_url }}" class="btn btn-success btn-sm" download>
-                                Download Excel Masterfile
-                            </a>
-                            {% else %}
-                            <span class="text-muted">Excel Masterfile not generated yet.</span>
-                            {% endif %}
-                            
-                            {% if analysis.pptx_path %}
-                                <a href="{{ MEDIA_URL }}{{ analysis.pptx_path }}" class="btn btn-danger btn-lg" download>
-                                    <i class="bi bi-file-earmark-slides me-2"></i> Download PPT
-                                </a>
-                            {% endif %}
+                    <div class="d-grid gap-2 mb-3">
+                        {% if workbook_url %}
+                        <a href="{{ workbook_url }}" class="btn btn-success shadow-sm" download>
+                            <i class="bi bi-file-earmark-excel me-2"></i>Download Excel Masterfile
+                        </a>
+                        {% else %}
+                        <div class="alert alert-secondary mb-0 small">
+                            <i class="bi bi-info-circle me-1"></i>Excel Masterfile not generated yet.
                         </div>
-                        <hr>
-                        <p class="small text-muted text-center mb-0">Files are ready for download.</p>
+                        {% endif %}
+
+                        {% if analysis.pptx_path %}
+                        <a href="{{ MEDIA_URL }}{{ analysis.pptx_path }}" class="btn btn-danger shadow-sm" download>
+                            <i class="bi bi-file-earmark-slides me-2"></i>Download PowerPoint
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 text-center">
+                        <i class="bi bi-check-circle text-success fs-4 mb-2 d-block"></i>
+                        <small class="text-success fw-semibold">Files are ready for download</small>
+                    </div>
 
                     {% elif analysis.status == 'failed' %}
-                         <div class="alert alert-danger mb-0">
-                            Generation failed. Please try again or re-select regions.
-                         </div>
+                    <div class="alert alert-danger border-danger border-opacity-25 mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Generation Failed</strong><br>
+                        <small>Please try again or re-select regions.</small>
+                    </div>
+
+                    {% elif analysis.status == 'awaiting_excel_review' %}
+                    <div class="alert alert-info border-info border-opacity-25 mb-0">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Review Required</strong><br>
+                        <small>Draft files have been generated. Please review the Excel file and upload the corrected version.</small>
+                    </div>
 
                     {% else %}
-                        <form action="{% url 'analysis_app:generate_analysis' analysis.id %}" method="POST">
-                            {% csrf_token %}
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg shadow-sm"
-                                    {% if not design_data_region or not bom_region %}disabled{% endif %}>
-                                    <i class="bi bi-cpu me-2"></i> Generate Analysis
-                                </button>
-                            </div>
-                        </form>
-                        
-                        {% if not design_data_region or not bom_region %}
-                            <div class="alert alert-warning mt-3 small mb-0">
-                                <i class="bi bi-exclamation-triangle"></i> You must select Design Data & BOM regions first.
-                            </div>
-                        {% endif %}
+                    <form action="{% url 'analysis_app:generate_analysis' analysis.id %}" method="POST">
+                        {% csrf_token %}
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-info btn-lg shadow-sm fw-semibold"
+                                {% if not design_data_region or not bom_region %}disabled{% endif %}>
+                                <i class="bi bi-cpu-fill me-2"></i>Generate Analysis
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if not design_data_region or not bom_region %}
+                    <div class="alert alert-warning border-warning border-opacity-25 mb-0 small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        You must select Design Data & BOM regions first.
+                    </div>
+                    {% endif %}
                     {% endif %}
                 </div>
             </div>
 
+            
             {% if analysis.status != 'in_progress' %}
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 rounded-3 mb-4">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-gear text-info me-2"></i>Configuration
+                    </h6>
+                </div>
                 <div class="card-body">
-                    <h6 class="fw-bold">Configuration</h6>
-                    <p class="text-muted small">Need to change the selected areas?</p>
-                    <a href="{% url 'analysis_app:select_region' analysis.id 'design_data' 1 %}" class="btn btn-outline-secondary w-100">
-                        <i class="bi bi-pencil-square me-2"></i> Re-select Regions
+                    <p class="text-muted small mb-3">Need to change the selected areas?</p>
+                    <a href="{% url 'analysis_app:select_region' analysis.id 'design_data' 1 %}"
+                        class="btn btn-outline-info w-100 shadow-sm">
+                        <i class="bi bi-pencil-square me-2"></i>Re-select Regions
                     </a>
                 </div>
             </div>
             {% endif %}
+
+          
+            <div class="card shadow-sm border-0 rounded-3 bg-info bg-opacity-10 border-info border-opacity-25">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-info-circle text-info" style="font-size: 2rem;"></i>
+                    <p class="small text-muted mt-2 mb-0">
+                        Analysis ID: <strong class="text-info">{{ analysis.id }}</strong>
+                    </p>
+                </div>
+            </div>
+
         </div>
 
+     
         <div class="col-lg-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold py-3">
-                    <i class="bi bi-layers text-primary me-2"></i> Selected Regions Overview
+            <div class="card shadow-sm border-0 rounded-3 mb-4">
+                <div class="card-header bg-info bg-gradient text-white border-0 py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-25 rounded-2 p-2 me-2">
+                            <i class="bi bi-layers fs-5"></i>
+                        </div>
+                        <h5 class="mb-0 fw-semibold">Selected Regions Overview</h5>
+                    </div>
                 </div>
-                <div class="card-body">
-                    
-                    <div class="d-flex align-items-center mb-4 p-3 border rounded bg-light">
+                <div class="card-body p-4">
+
+                  
+                    <div class="d-flex align-items-start mb-4 p-4 border border-2 border-info border-opacity-25 rounded-3 bg-light">
                         <div class="me-3">
-                            <span class="badge bg-primary rounded-circle p-3"><i class="bi bi-table fs-4"></i></span>
+                            <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-diagram-3 text-info fs-3"></i>
+                            </div>
                         </div>
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-bold">Design Data</h6>
-                           {% if design_data_region %}
-                                <p class="mb-0 text-success small">
-                                    <i class="bi bi-check-circle-fill"></i> Selected on Page {{ design_data_region.page.page_number }}
-                                </p>
-                                <small class="text-muted">
-                                    Coords: ({{ design_data_region.x1|floatformat:2 }}, {{ design_data_region.y1|floatformat:2 }})
-                                </small>
+                            <h6 class="mb-2 fw-bold">
+                                <i class="bi bi-1-circle-fill text-info me-1"></i>Design Data
+                            </h6>
+                            {% if design_data_region %}
+                            <div class="mb-2">
+                                <span class="badge bg-success px-3 py-2">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Selected
+                                </span>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2 ms-2">
+                                    <i class="bi bi-file-text me-1"></i>Page {{ design_data_region.page.page_number }}
+                                </span>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-crosshair me-1"></i>
+                                Coordinates: ({{ design_data_region.x1|floatformat:2 }}, {{ design_data_region.y1|floatformat:2 }})
+                                → ({{ design_data_region.x2|floatformat:2 }}, {{ design_data_region.y2|floatformat:2 }})
+                            </small>
                             {% else %}
-                                <p class="mb-0 text-danger small">
-                                    <i class="bi bi-x-circle-fill"></i> Not selected yet
-                                </p>
+                            <div class="alert alert-danger border-danger border-opacity-25 mb-0 py-2">
+                                <i class="bi bi-x-circle-fill me-1"></i>Not selected yet
+                            </div>
                             {% endif %}
                         </div>
                     </div>
 
-                    <div class="d-flex align-items-center mb-4 p-3 border rounded bg-light">
+                   
+                    <div class="d-flex align-items-start mb-4 p-4 border border-2 border-info border-opacity-25 rounded-3 bg-light">
                         <div class="me-3">
-                            <span class="badge bg-info text-dark rounded-circle p-3"><i class="bi bi-list-task fs-4"></i></span>
+                            <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-list-ul text-info fs-3"></i>
+                            </div>
                         </div>
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-bold">Bill of Material (BOM)</h6>
+                            <h6 class="mb-2 fw-bold">
+                                <i class="bi bi-2-circle-fill text-info me-1"></i>Bill of Material (BOM)
+                            </h6>
                             {% if bom_region %}
-                                <p class="mb-0 text-success small"><i class="bi bi-check-circle-fill"></i> Selected on Page {{ bom_region.page.page_number }}</p>
-                                <small class="text-muted">Coords: ({{ bom_region.x1|floatformat:2 }}, {{ bom_region.y1|floatformat:2 }})</small>
+                            <div class="mb-2">
+                                <span class="badge bg-success px-3 py-2">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Selected
+                                </span>
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3 py-2 ms-2">
+                                    <i class="bi bi-file-text me-1"></i>Page {{ bom_region.page.page_number }}
+                                </span>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-crosshair me-1"></i>
+                                Coordinates: ({{ bom_region.x1|floatformat:2 }}, {{ bom_region.y1|floatformat:2 }})
+                                → ({{ bom_region.x2|floatformat:2 }}, {{ bom_region.y2|floatformat:2 }})
+                            </small>
                             {% else %}
-                                <p class="mb-0 text-danger small"><i class="bi bi-x-circle-fill"></i> Not selected yet</p>
+                            <div class="alert alert-danger border-danger border-opacity-25 mb-0 py-2">
+                                <i class="bi bi-x-circle-fill me-1"></i>Not selected yet
+                            </div>
                             {% endif %}
                         </div>
                     </div>
 
-                    <div class="d-flex align-items-start p-3 border rounded bg-light">
+                  
+                    <div class="d-flex align-items-start p-4 border border-2 border-info border-opacity-25 rounded-3 bg-light">
                         <div class="me-3">
-                            <span class="badge bg-warning text-dark rounded-circle p-3"><i class="bi bi-images fs-4"></i></span>
+                            <div class="bg-info bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-images text-info fs-3"></i>
+                            </div>
                         </div>
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 fw-bold">Slide Images</h6>
-                            <p class="text-muted small mb-2">Images to be included in PowerPoint.</p>
-                            
+                            <h6 class="mb-2 fw-bold">
+                                <i class="bi bi-3-circle-fill text-info me-1"></i>Slide Images
+                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 ms-2">
+                                    Optional
+                                </span>
+                            </h6>
+                            <p class="text-muted small mb-3">Images to be included in PowerPoint presentation.</p>
+
                             {% if slide_regions %}
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <thead>
-                                            <tr class="text-muted">
-                                                <th>#</th>
-                                                <th>Page</th>
-                                                <th>Location</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for region in slide_regions %}
-                                            <tr>
-                                                <td>{{ forloop.counter }}</td>
-                                                <td>Page {{ region.page.page_number }}</td>
-                                                <td>x:{{ region.x1|floatformat:2 }}, y:{{ region.y1|floatformat:2 }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="bg-info bg-opacity-10">
+                                        <tr>
+                                            <th class="fw-semibold">#</th>
+                                            <th class="fw-semibold">Page</th>
+                                            <th class="fw-semibold">Coordinates</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for region in slide_regions %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-info bg-opacity-10 text-info">{{ forloop.counter }}</span>
+                                            </td>
+                                            <td>
+                                                <i class="bi bi-file-text text-info me-1"></i>Page {{ region.page.page_number }}
+                                            </td>
+                                            <td class="small text-muted">
+                                                <i class="bi bi-crosshair me-1"></i>
+                                                ({{ region.x1|floatformat:2 }}, {{ region.y1|floatformat:2 }})
+                                                → ({{ region.x2|floatformat:2 }}, {{ region.y2|floatformat:2 }})
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                             {% else %}
-                                <p class="text-muted small fst-italic">No extra images selected (Optional).</p>
+                            <div class="alert alert-secondary border-secondary border-opacity-25 mb-0 py-2">
+                                <i class="bi bi-dash-circle me-1"></i>No extra images selected (Optional)
+                            </div>
                             {% endif %}
                         </div>
                     </div>
 
                 </div>
             </div>
+
+            
+            {% if workbook_url %}
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-success bg-opacity-10 border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-semibold">
+                            <i class="bi bi-file-earmark-excel text-success me-2"></i>Excel Masterfile
+                        </h6>
+                        <a href="{{ workbook_url }}" class="btn btn-sm btn-outline-success" target="_blank">
+                            <i class="bi bi-download me-1"></i>Download
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        This Masterfile contains all uploaded equipment history. You can download it or edit it directly using the online editor.
+                    </p>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'analysis_app:edit_masterfile' analysis.id %}" class="btn btn-info shadow-sm">
+                            <i class="bi bi-pencil-square me-2"></i>Edit Online
+                        </a>
+                        <a href="{{ workbook_url }}" class="btn btn-outline-secondary" target="_blank">
+                            <i class="bi bi-box-arrow-up-right me-2"></i>Open in Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning border-warning border-opacity-25 shadow-sm">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Excel Masterfile not generated yet</strong><br>
+                <small>The Masterfile will be available after analysis generation is complete.</small>
+            </div>
+            {% endif %}
+
         </div>
     </div>
 
-    <hr class="my-4">
-
-<h5 class="mb-3">Extracted Design Data (Debug View)</h5>
-{% if design_rows_preview %}
-    <div class="table-responsive mb-4">
-        <table class="table table-sm table-bordered align-middle">
-            <thead class="table-light">
-                {% with first_row=design_rows_preview.0 %}
-                <tr>
-                    {% for key, val in first_row.items %}
-                        <th scope="col">{{ key }}</th>
-                    {% endfor %}
-                </tr>
-                {% endwith %}
-            </thead>
-            <tbody>
-                {% for row in design_rows_preview %}
-                    <tr>
-                        {% for key, val in row.items %}
-                            <td>{{ val }}</td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% else %}
-    <p class="text-muted small">No design data extracted (or AI returned empty result).</p>
-{% endif %}
-
-<h5 class="mb-3">Extracted Bill Of Material (Debug View)</h5>
-{% if bom_rows_preview %}
-    <div class="table-responsive mb-4">
-        <table class="table table-sm table-bordered align-middle">
-            <thead class="table-light">
-                {% with first_row=bom_rows_preview.0 %}
-                <tr>
-                    {% for key, val in first_row.items %}
-                        <th scope="col">{{ key }}</th>
-                    {% endfor %}
-                </tr>
-                {% endwith %}
-            </thead>
-            <tbody>
-                {% for row in bom_rows_preview %}
-                    <tr>
-                        {% for key, val in row.items %}
-                            <td>{{ val }}</td>
-                        {% endfor %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% else %}
-    <p class="text-muted small">No BOM data extracted (or AI returned empty result).</p>
-{% endif %}
-
 </div>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0aa8d1 100%) !important;
+    }
+
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .rounded-3 {
+        border-radius: 0.75rem !important;
+    }
+
+    .badge {
+        font-weight: 500;
+        letter-spacing: 0.3px;
+    }
+
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .card {
+        animation: slideIn 0.4s ease-out;
+    }
+
+    .col-lg-4 .card:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .col-lg-4 .card:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .col-lg-8 .card {
+        animation-delay: 0.15s;
+    }
+
+    /* Hover effects */
+    .btn:hover {
+        transform: translateY(-2px);
+        transition: all 0.2s ease;
+    }
+
+    /* Table hover effect */
+    .table-hover tbody tr:hover {
+        background-color: rgba(13, 202, 240, 0.05);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        {% if analysis.status == 'in_progress' %}
+        setTimeout(function() {
+            location.reload();
+        }, 5000);
+        {% endif %}
+    });
+</script>
 {% endblock %}

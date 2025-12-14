@@ -1,7 +1,12 @@
-from django.shortcuts import render
+from __future__ import annotations
 
-# Create your views here.
 from pathlib import Path
+from typing import Any, Dict, List
+
+import json
+import openpyxl
+from openpyxl import load_workbook
+from openpyxl.cell.cell import MergedCell
 
 from django.conf import settings
 from django.contrib import messages
@@ -13,13 +18,13 @@ from django.views.decorators.http import require_POST
 from .models import Analysis, AnalysisPage, RegionSelection
 from .services.cropper import crop_region_from_page
 from .services.ai_extractor import extract_design_metadata, extract_bom_materials
-from .services.masterfile_builder import append_equipment_to_masterfile, parse_filename
-
-
-from .services.ppt_builder import get_or_create_pptx, add_images_to_presentation
+from .services.masterfile_builder import (
+    append_equipment_to_masterfile,
+    parse_filename,
+)
+from .services.ppt_builder import sync_all_slides_from_masterfile
 
 from core_app.decorators import rbi_login_required
-
 
 
 STEP_LABEL = {
@@ -31,72 +36,15 @@ STEP_LABEL = {
 
 
 @rbi_login_required
-def analysis_detail(request, analysis_id):
-   
-    analysis = get_object_or_404(Analysis, pk=analysis_id)
-    regions = analysis.regions.select_related("page").all()
-
-    design_data_region = regions.filter(step_type="design_data").first()
-    bom_region = regions.filter(step_type="bom").first()
-    slide_regions = regions.filter(step_type="slide_image")
-
-   
-    workbook_url = None
-    if analysis.workbook_path:
-        workbook_url = settings.MEDIA_URL + analysis.workbook_path
-
-
-    design_rows_preview = []
-    bom_rows_preview = []
-
-    try:
-        if design_data_region:
-            design_crop_rel = crop_region_from_page(
-                design_data_region.page.image.name,
-                design_data_region.x1,
-                design_data_region.y1,
-                design_data_region.x2,
-                design_data_region.y2,
-            )
-          
-    except Exception as e:
-        print("Design data preview error:", e)
-
-    try:
-        if bom_region:
-            bom_crop_rel = crop_region_from_page(
-                bom_region.page.image.name,
-                bom_region.x1,
-                bom_region.y1,
-                bom_region.x2,
-                bom_region.y2,
-            )
-         
-    except Exception as e:
-        print("BOM preview error:", e)
-
-    context = {
-        "analysis": analysis,
-        "design_data_region": design_data_region,
-        "bom_region": bom_region,
-        "slide_regions": slide_regions,
-        "workbook_url": workbook_url,
-        "design_rows_preview": design_rows_preview,
-        "bom_rows_preview": bom_rows_preview,
-    }
-    return render(request, "detail.html", context)
-
-
-@rbi_login_required
 def upload_analysis(request):
-    
+  
     if request.method == "POST":
         pdf_file = request.FILES.get("pdf_file")
         if not pdf_file:
             messages.error(request, "Please select a PDF file.")
             return redirect("analysis_app:upload")
 
-       
+     
         rbi_user = request.session.get("rbi_user") or {}
         external_user_id = rbi_user.get("id")
         external_user_email = rbi_user.get("email")
@@ -106,7 +54,7 @@ def upload_analysis(request):
             messages.error(request, "Session expired or user not found. Please log in again.")
             return redirect("login")
 
-      
+       
         analysis = Analysis.objects.create(
             user=None,  
             external_user_id=external_user_id,
@@ -117,7 +65,7 @@ def upload_analysis(request):
             status="awaiting_regions",
         )
 
-       
+        
         pdf_path = analysis.file.path
 
         from pdf2image import convert_from_path
@@ -158,18 +106,22 @@ def upload_analysis(request):
     return render(request, "uploading.html")
 
 
+
 @rbi_login_required
 def select_region(request, analysis_id, step_type, page_number):
-   
+ 
     if step_type not in ("design_data", "bom", "slide_image"):
         messages.error(request, "Invalid step type.")
         return redirect("analysis_app:history")
 
-    
     analysis = get_object_or_404(Analysis, pk=analysis_id)
     page = get_object_or_404(AnalysisPage, analysis=analysis, page_number=page_number)
 
-    
+
+    original_name = analysis.original_filename or ""
+    is_h004 = "H-004" in original_name
+
+
     all_pages = list(analysis.pages.all())
     page_numbers = [p.page_number for p in all_pages]
     idx = page_numbers.index(page_number)
@@ -197,8 +149,11 @@ def select_region(request, analysis_id, step_type, page_number):
             },
         )
 
-    
+
     if request.method == "POST":
+
+        action = request.POST.get("action", "next")
+
         x1 = request.POST.get("x1")
         y1 = request.POST.get("y1")
         x2 = request.POST.get("x2")
@@ -223,8 +178,9 @@ def select_region(request, analysis_id, step_type, page_number):
                 ):
                     messages.error(request, "Coordinates must be between 0 and 1.")
                 else:
-                    if step_type in ("design_data", "bom"):
-                       
+                  
+                    if step_type == "design_data":
+                        
                         RegionSelection.objects.update_or_create(
                             analysis=analysis,
                             step_type=step_type,
@@ -236,8 +192,35 @@ def select_region(request, analysis_id, step_type, page_number):
                                 "y2": y2,
                             },
                         )
+
+                    elif step_type == "bom":
+                        if is_h004:
+                           
+                            RegionSelection.objects.create(
+                                analysis=analysis,
+                                page=page,
+                                step_type=step_type,
+                                x1=x1,
+                                y1=y1,
+                                x2=x2,
+                                y2=y2,
+                            )
+                        else:
+                           
+                            RegionSelection.objects.update_or_create(
+                                analysis=analysis,
+                                step_type=step_type,
+                                defaults={
+                                    "page": page,
+                                    "x1": x1,
+                                    "y1": y1,
+                                    "x2": x2,
+                                    "y2": y2,
+                                },
+                            )
+
                     else:
-                   
+                        
                         RegionSelection.objects.create(
                             analysis=analysis,
                             page=page,
@@ -258,14 +241,26 @@ def select_region(request, analysis_id, step_type, page_number):
                             step_type="bom",
                             page_number=page_number,
                         )
+
                     elif step_type == "bom":
+                     
+                        if is_h004 and action == "add_more":
+                            return redirect(
+                                "analysis_app:select_region",
+                                analysis_id=analysis.id,
+                                step_type="bom",
+                                page_number=page_number,
+                            )
+                        
                         return redirect(
                             "analysis_app:select_region",
                             analysis_id=analysis.id,
                             step_type="slide_image",
                             page_number=page_number,
                         )
+
                     else:
+                        
                         return redirect(
                             "analysis_app:review_analysis",
                             analysis_id=analysis.id,
@@ -281,32 +276,31 @@ def select_region(request, analysis_id, step_type, page_number):
         "step_label": STEP_LABEL.get(step_type, "Select Region"),
         "prev_page_url": prev_page_url,
         "next_page_url": next_page_url,
-        "total_pages": len(page_numbers), 
+        "total_pages": len(page_numbers),
+        "is_h004": is_h004, 
     }
- 
     return render(request, "select_region.html", context)
 
 
 
-
-# analysis_app/views.py
-
-
 @rbi_login_required
 def review_analysis(request, analysis_id):
-    
     analysis = get_object_or_404(Analysis, pk=analysis_id)
-
     regions = analysis.regions.select_related("page").all()
+
+    
     design_data_region = regions.filter(step_type="design_data").first()
-    bom_region = regions.filter(step_type="bom").first()
-    slide_regions = regions.filter(step_type="slide_image")
+    
+    bom_regions = list(regions.filter(step_type="bom"))
+    
+    slide_regions = list(regions.filter(step_type="slide_image"))
 
    
     design_preview_url = None
-    bom_preview_url = None
-    slide_previews = []  
+    bom_previews: List[Dict[str, Any]] = []
+    slide_previews: List[Dict[str, Any]] = []
 
+ 
     if design_data_region:
         design_rel = crop_region_from_page(
             page_image_name=design_data_region.page.image.name,
@@ -317,17 +311,23 @@ def review_analysis(request, analysis_id):
         )
         design_preview_url = settings.MEDIA_URL + design_rel
 
-    if bom_region:
+   
+    for r in bom_regions[:3]:
         bom_rel = crop_region_from_page(
-            page_image_name=bom_region.page.image.name,
-            x1=bom_region.x1,
-            y1=bom_region.y1,
-            x2=bom_region.x2,
-            y2=bom_region.y2,
+            page_image_name=r.page.image.name,
+            x1=r.x1,
+            y1=r.y1,
+            x2=r.x2,
+            y2=r.y2,
         )
-        bom_preview_url = settings.MEDIA_URL + bom_rel
+        bom_previews.append(
+            {
+                "page": r.page.page_number,
+                "url": settings.MEDIA_URL + bom_rel,
+            }
+        )
 
- 
+   
     for r in slide_regions[:3]:
         rel = crop_region_from_page(
             page_image_name=r.page.image.name,
@@ -336,20 +336,20 @@ def review_analysis(request, analysis_id):
             x2=r.x2,
             y2=r.y2,
         )
-        slide_previews.append({
-            "page": r.page.page_number,
-            "url": settings.MEDIA_URL + rel,
-        })
+        slide_previews.append(
+            {
+                "page": r.page.page_number,
+                "url": settings.MEDIA_URL + rel,
+            }
+        )
 
     context = {
         "analysis": analysis,
         "design_data_region": design_data_region,
-        "bom_region": bom_region,
+        "bom_regions": bom_regions,
         "slide_regions": slide_regions,
-
-        # new:
         "design_preview_url": design_preview_url,
-        "bom_preview_url": bom_preview_url,
+        "bom_previews": bom_previews,
         "slide_previews": slide_previews,
     }
     return render(request, "review.html", context)
@@ -357,35 +357,96 @@ def review_analysis(request, analysis_id):
 
 
 @rbi_login_required
-@require_POST
-def generate_analysis(request, analysis_id):
-
+def analysis_detail(request, analysis_id):
     analysis = get_object_or_404(Analysis, pk=analysis_id)
     regions = analysis.regions.select_related("page").all()
 
-    
-    design_region = regions.filter(step_type="design_data").first()
+    design_data_region = regions.filter(step_type="design_data").first()
     bom_region = regions.filter(step_type="bom").first()
+    slide_regions = regions.filter(step_type="slide_image")
+
+
+    workbook_url = None
+    if analysis.workbook_path:
+        workbook_url = settings.MEDIA_URL + analysis.workbook_path
+
+    
+    design_rows_preview: List[Dict[str, Any]] = []
+    bom_rows_preview: List[Dict[str, Any]] = []
+
+    try:
+        if design_data_region:
+            _ = crop_region_from_page(
+                design_data_region.page.image.name,
+                design_data_region.x1,
+                design_data_region.y1,
+                design_data_region.x2,
+                design_data_region.y2,
+            )
+         
+    except Exception as e:
+        print("Design data preview error:", e)
+
+    try:
+        if bom_region:
+            _ = crop_region_from_page(
+                bom_region.page.image.name,
+                bom_region.x1,
+                bom_region.y1,
+                bom_region.x2,
+                bom_region.y2,
+            )
+         
+    except Exception as e:
+        print("BOM preview error:", e)
+
+    context = {
+        "analysis": analysis,
+        "design_data_region": design_data_region,
+        "bom_region": bom_region,
+        "slide_regions": slide_regions,
+        "workbook_url": workbook_url,
+        "design_rows_preview": design_rows_preview,
+        "bom_rows_preview": bom_rows_preview,
+    }
+    return render(request, "detail.html", context)
+
+
+
+@rbi_login_required
+@require_POST
+def generate_analysis(request, analysis_id):
+    analysis = get_object_or_404(Analysis, pk=analysis_id)
+    regions = analysis.regions.select_related("page").all()
+
+    design_region = regions.filter(step_type="design_data").first()
+    bom_regions = list(regions.filter(step_type="bom"))
     slide_regions = list(regions.filter(step_type="slide_image"))
 
-    if not design_region or not bom_region:
+    if not design_region or not bom_regions:
         messages.error(request, "Design Data and BOM regions are required.")
         return redirect("analysis_app:review_analysis", analysis_id=analysis.id)
 
-   
-    analysis.status = "in_progress"
-    analysis.save()
-
   
+    analysis.status = "in_progress"
+    analysis.save(update_fields=["status"])
+
+   
     if not analysis.workbook_path:
         user_key = analysis.external_user_id or "anon"
-       
         analysis.workbook_path = f"analysis/workbooks/{user_key}_IPETRO_Masterfile.xlsx"
-        analysis.save()
+        analysis.save(update_fields=["workbook_path"])
+
+   
+    if not analysis.pptx_path:
+        user_key = analysis.external_user_id or "anon"
+        analysis.pptx_path = f"analysis/ppt/{user_key}_InspectionPlan.pptx"
+        analysis.save(update_fields=["pptx_path"])
+
 
     pmt_no, equipment_no = parse_filename(analysis.original_filename)
-  
 
+   
     design_crop_rel = crop_region_from_page(
         design_region.page.image.name,
         design_region.x1,
@@ -394,17 +455,28 @@ def generate_analysis(request, analysis_id):
         design_region.y2,
     )
 
-  
-    bom_crop_rel = crop_region_from_page(
-        bom_region.page.image.name,
-        bom_region.x1,
-        bom_region.y1,
-        bom_region.x2,
-        bom_region.y2,
-    )
 
- 
-    design_meta = {}
+    bom_items: List[Dict[str, Any]] = []
+    for bom_region in bom_regions:
+        bom_crop_rel = crop_region_from_page(
+            bom_region.page.image.name,
+            bom_region.x1,
+            bom_region.y1,
+            bom_region.x2,
+            bom_region.y2,
+        )
+        try:
+            items = extract_bom_materials(
+                bom_crop_rel,
+                pmt_no=pmt_no,
+                equipment_no=equipment_no,
+            ) or []
+            bom_items.extend(items)
+        except Exception as e:
+            print("BOM materials extraction failed for one region:", e)
+
+
+    design_meta: Dict[str, Any] = {}
     try:
         design_meta = extract_design_metadata(
             design_crop_rel,
@@ -414,17 +486,23 @@ def generate_analysis(request, analysis_id):
     except Exception as e:
         print("Design metadata extraction failed:", e)
 
-  
-    bom_items = []
-    try:
-        bom_items = extract_bom_materials(
-            bom_crop_rel,
-            pmt_no=pmt_no,
-            equipment_no=equipment_no,
-        ) or []
-    except Exception as e:
-        print("BOM materials extraction failed:", e)
+    
+    slide_image_paths: List[str] = []
+    for r in slide_regions:
+        crop_rel = crop_region_from_page(
+            page_image_name=r.page.image.name,
+            x1=r.x1,
+            y1=r.y1,
+            x2=r.x2,
+            y2=r.y2,
+        )
+        slide_image_paths.append(crop_rel)
 
+    image_map: Dict[Tuple[str, str], str] = {}
+    if slide_image_paths:
+        image_map[(pmt_no, equipment_no)] = slide_image_paths[0]
+
+   
     try:
         append_equipment_to_masterfile(
             workbook_rel_path=analysis.workbook_path,
@@ -432,38 +510,201 @@ def generate_analysis(request, analysis_id):
             design_meta=design_meta,
             bom_items=bom_items,
         )
+        sync_all_slides_from_masterfile(
+            pptx_rel_path=analysis.pptx_path,
+            workbook_rel_path=analysis.workbook_path,
+            image_map=image_map or None,
+        )
     except Exception as e:
         print("Append to Masterfile failed:", e)
 
-
-    if not analysis.pptx_path:
-        safe_name = Path(analysis.original_filename).stem[:30]
-        analysis.pptx_path = (
-            f"analysis/ppt/{analysis.user_id or 'anon'}_{analysis.id}_{safe_name}.pptx"
+ 
+    try:
+        sync_all_slides_from_masterfile(
+            pptx_rel_path=analysis.pptx_path,
+            workbook_rel_path=analysis.workbook_path,
+            image_map=image_map or None,
         )
+    except Exception as e:
+        print("PPT sync failed:", e)
+
+    
+    analysis.status = "awaiting_excel_review"
+    analysis.save(update_fields=["status"])
+
+    messages.success(
+        request,
+        "Draft Excel Masterfile and PowerPoint have been updated from the latest data. "
+        "Please review/edit the Excel online.",
+    )
+    return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
+
+
+
+@rbi_login_required
+def edit_masterfile(request, analysis_id):
+    analysis = get_object_or_404(Analysis, pk=analysis_id)
+
+    if not analysis.workbook_path:
+        messages.error(request, "Masterfile not found for this analysis.")
+        return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
+
+    abs_path = Path(settings.MEDIA_ROOT) / analysis.workbook_path
+    if not abs_path.exists():
+        messages.error(request, "Workbook file is missing on server.")
+        return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
+
+    wb = openpyxl.load_workbook(abs_path, data_only=True)
+    sheet_name = "Masterfile" if "Masterfile" in wb.sheetnames else wb.sheetnames[0]
+    ws = wb[sheet_name]
+
+    DATA_START_ROW = 8  
+    MAX_COL = 20        
+
+    rows: List[List[str]] = []
+    for row_idx in range(DATA_START_ROW, ws.max_row + 1):
+        row_data: List[str] = []
+        is_empty = True
+        for col_idx in range(1, MAX_COL + 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            val = cell.value
+            if val not in (None, ""):
+                is_empty = False
+            row_data.append("" if val is None else str(val))
+        if not is_empty:
+            rows.append(row_data)
+
+    if not rows:
+        
+        rows = [["" for _ in range(MAX_COL)] for _ in range(5)]
+
+    table_data_json = json.dumps(rows)
+
+    context = {
+        "analysis": analysis,
+        "table_data_json": table_data_json,
+    }
+    return render(request, "edit_masterfile.html", context)
+
+
+@rbi_login_required
+@require_POST
+def save_masterfile(request, analysis_id):
+    analysis = get_object_or_404(Analysis, pk=analysis_id)
+
+    raw = request.POST.get("table_data")
+    if not raw:
+        print("SAVE_MASTERFILE JSON ERROR: No JSON data provided")
+        print("REQUEST.POST:", request.POST)
+        messages.error(request, "No data received from grid.")
+        return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+    try:
+        grid = json.loads(raw)  
+    except json.JSONDecodeError as e:
+        print("SAVE_MASTERFILE JSON ERROR:", e)
+        print("RAW:", raw[:200])
+        messages.error(request, "Invalid data format from grid.")
+        return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+    if not analysis.workbook_path:
+        messages.error(request, "No workbook attached to this analysis.")
+        return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+    abs_path = Path(settings.MEDIA_ROOT) / analysis.workbook_path
+    if not abs_path.exists():
+        messages.error(request, "Workbook file not found on server.")
+        return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+    wb = load_workbook(abs_path)
+    ws = wb["Masterfile"]  
+
+    start_row = 8   
+    start_col = 1   
+
+
+    max_cols = max((len(r) for r in grid), default=0)
+    for r in grid:
+        while len(r) < max_cols:
+            r.append("")
+
+
+    old_last_row = ws.max_row
+    for row_idx in range(start_row, old_last_row + 1):
+        for col_idx in range(start_col, start_col + max_cols):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            if isinstance(cell, MergedCell):
+                continue
+            cell.value = None
+
+    # Tulis data baru
+    for r_idx, row_data in enumerate(grid, start=start_row):
+        for c_idx, value in enumerate(row_data, start=start_col):
+            cell = ws.cell(row=r_idx, column=c_idx)
+            if isinstance(cell, MergedCell):
+                continue
+            cell.value = value
+
+    wb.save(abs_path)
+
+    
+    try:
+        user_key = analysis.external_user_id or "anon"
+
+        
+        if not analysis.pptx_path:
+            analysis.pptx_path = f"analysis/ppt/{user_key}_InspectionPlan.pptx"
+            analysis.save(update_fields=["pptx_path"])
+
+        sync_all_slides_from_masterfile(
+            pptx_rel_path=analysis.pptx_path,
+            workbook_rel_path=analysis.workbook_path,
+            image_map=None,  
+        )
+    except Exception as e:
+        print("PPT sync failed after save_masterfile:", e)
+        messages.warning(request, "✅ Masterfile saved, but PPT sync failed.")
+        return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+
+
+    messages.success(request, "✅ Masterfile has been saved successfully.")
+    return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
+
+
+
+@rbi_login_required
+@require_POST
+def upload_corrected_masterfile(request, analysis_id):
+    analysis = get_object_or_404(Analysis, pk=analysis_id)
+
+    file_obj = request.FILES.get("masterfile")
+    if not file_obj:
+        messages.error(request, "Please select an Excel file to upload.")
+        return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
+
+    if not file_obj.name.lower().endswith((".xlsx", ".xlsm")):
+        messages.error(request, "Invalid file type. Please upload an .xlsx or .xlsm file.")
+        return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
+
+    if not analysis.workbook_path:
+        user_key = analysis.external_user_id or "anon"
+        analysis.workbook_path = f"analysis/workbooks/{user_key}_IPETRO_Masterfile.xlsx"
         analysis.save()
 
-    abs_pptx = get_or_create_pptx(analysis.pptx_path)
+    abs_path = Path(settings.MEDIA_ROOT) / analysis.workbook_path
+    abs_path.parent.mkdir(parents=True, exist_ok=True)
 
-    slide_image_paths = []
-    for r in slide_regions:
-        crop_rel = crop_region_from_page(
-            r.page.image.name,
-            r.x1,
-            r.y1,
-            r.x2,
-            r.y2,
-        )
-        slide_image_paths.append(crop_rel)
+    
+    with abs_path.open("wb+") as dest:
+        for chunk in file_obj.chunks():
+            dest.write(chunk)
 
-    if slide_image_paths:
-        add_images_to_presentation(abs_pptx, slide_image_paths)
-
- 
+    
     analysis.status = "completed"
     analysis.save()
 
-    messages.success(request, "Excel Masterfile and PowerPoint generated successfully.")
+    messages.success(request, "Corrected Masterfile uploaded successfully.")
     return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
 
 
@@ -483,5 +724,3 @@ def analysis_history(request):
     analyses = paginator.get_page(page_number)
 
     return render(request, "history.html", {"analyses": analyses})
-
-

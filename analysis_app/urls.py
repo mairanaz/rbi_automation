@@ -1,5 +1,3 @@
-# analysis_app/urls.py
-
 from django.urls import path
 from . import views
 
@@ -25,4 +23,9 @@ urlpatterns = [
         views.generate_analysis,
         name="generate_analysis",
     ),
+
+    path( "analysis/<int:analysis_id>/edit-masterfile/",views.edit_masterfile, name="edit_masterfile",),
+    path("analysis/<int:analysis_id>/save-masterfile/", views.save_masterfile,name="save_masterfile",),
+
+    path( "analysis/<int:analysis_id>/upload-corrected-masterfile/", views.upload_corrected_masterfile, name="upload_corrected_masterfile", ),
 ]

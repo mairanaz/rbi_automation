@@ -4,70 +4,152 @@
 {% block title %}Upload New Analysis{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 mb-5">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            
+        <div class="col-md-10 col-lg-8">
+         
             <div class="text-center mb-4">
-                <h2 class="fw-bold text-primary">New Analysis Project</h2>
-                <p class="text-muted">Upload your technical drawing PDF to begin extraction.</p>
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-info bg-opacity-10 rounded-circle" style="width: 80px; height: 80px;">
+                        <i class="bi bi-cloud-upload text-info" style="font-size: 2.5rem;"></i>
+                    </div>
+                </div>
+                <h2 class="fw-bold text-dark mb-2">New Analysis Project</h2>
+                <p class="text-muted fs-6">Upload your technical drawing PDF to begin intelligent extraction and analysis</p>
             </div>
 
             {% if messages %}
                 {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
-                        {% if message.tags == 'error' %}
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        {% else %}
-                            <i class="bi bi-check-circle-fill me-2"></i>
-                        {% endif %}
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                        <div class="d-flex align-items-center">
+                            {% if message.tags == 'error' %}
+                                <i class="bi bi-exclamation-triangle-fill me-3 fs-5"></i>
+                            {% else %}
+                                <i class="bi bi-check-circle-fill me-3 fs-5"></i>
+                            {% endif %}
+                            <div class="flex-grow-1">{{ message }}</div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     </div>
                 {% endfor %}
             {% endif %}
 
-            <div class="card shadow-lg border-0 rounded-3">
-                <div class="card-body p-5">
+          
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                
+             
+                <div class="card-header bg-info bg-gradient text-white border-0 py-4">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <div class="bg-white bg-opacity-25 rounded-3 p-3">
+                                <i class="bi bi-file-earmark-pdf fs-2"></i>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <h5 class="mb-1 fw-bold">Document Upload</h5>
+                            <p class="mb-0 opacity-90 small">PDF technical drawings only</p>
+                        </div>
+                    </div>
+                </div>
+
+             
+                <div class="card-body p-4 p-md-5">
                     
                     <form method="POST" enctype="multipart/form-data" id="uploadForm">
                         {% csrf_token %}
                         
-                        <div class="mb-4 text-center">
-                            <div class="mb-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-file-earmark-pdf text-danger" viewBox="0 0 16 16">
-                                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L9.5 3z"/>
-                                    <path d="M4.603 14.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.771.08-1.177.313-.611 1.127-1.319 1.951-1.319.495 0 .89.23 1.108.47.199.215.312.456.312.75 0 .546-.38 1.14-.984 1.488-.22.126-.45.204-.636.254a4.34 4.34 0 0 1-.893.065zm2.934-4.898c.16-.07.382-.09.566-.09.395 0 .84.148 1.15.524.234.286.37.66.37 1.04 0 .82-.55 1.568-1.353 1.568-.458 0-.853-.266-1.077-.664-.175-.31-.225-.71-.122-1.228.064-.325.216-.89.466-1.15z"/>
-                                </svg>
-                            </div>
-                            <h5 class="card-title">Select PDF Document</h5>
-                            <p class="card-text small text-muted">Supported format: .pdf only</p>
-                        </div>
-
+                       
                         <div class="mb-4">
-                            <label for="pdfFile" class="form-label fw-bold">Upload File</label>
+                            <label for="pdfFile" class="form-label fw-semibold text-dark mb-3">
+                                <i class="bi bi-paperclip text-info me-2"></i>Select PDF File
+                            </label>
                             
-                            <input class="form-control form-control-lg" type="file" id="pdfFile" name="pdf_file" accept="application/pdf" required>
+                          
+                            <div class="position-relative">
+                                <input class="form-control form-control-lg border-2 border-info" 
+                                       type="file" 
+                                       id="pdfFile" 
+                                       name="pdf_file" 
+                                       accept="application/pdf" 
+                                       required>
+                            </div>
                             
-                            <div class="form-text">
-                                Maximum file size: 10MB. Make sure the PDF is clear.
+                           
+                            <div class="mt-3 p-3 bg-info bg-opacity-10 rounded-3 border border-info border-opacity-25">
+                                <div class="row g-2 small">
+                                    <div class="col-md-6">
+                                        <i class="bi bi-info-circle text-info me-2"></i>
+                                        <strong>Format:</strong> PDF only
+                                    </div>
+                                    <div class="col-md-6">
+                                        <i class="bi bi-file-earmark-text text-info me-2"></i>
+                                        <strong>Max Size:</strong> 10MB
+                                    </div>
+                                    <div class="col-12 mt-2">
+                                        <i class="bi bi-check-circle text-info me-2"></i>
+                                        <strong>Tip:</strong> Ensure your PDF is clear and high-quality for best results
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        
+                        <div id="filePreview" class="mb-4 d-none">
+                            <div class="alert alert-info border-info border-opacity-25 mb-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-file-pdf text-danger fs-3 me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold" id="fileName">filename.pdf</div>
+                                        <div class="small text-muted" id="fileSize">0 KB</div>
+                                    </div>
+                                    <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                       
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <button type="submit" class="btn btn-info btn-lg fw-semibold shadow-sm" id="submitBtn">
+                                <i class="bi bi-play-circle me-2" id="btnIcon"></i>
                                 <span id="btnText">Start Processing</span>
-                                <span id="btnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
                             </button>
+                            
+                            <a href="{% url 'analysis_app:history' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-arrow-left me-2"></i>Back to History
+                            </a>
                         </div>
                     </form>
                 </div>
+
+                
+                <div class="card-footer bg-light border-0 py-3">
+                    <div class="row g-3 text-center small text-muted">
+                        <div class="col-md-4">
+                            <i class="bi bi-shield-check text-info d-block mb-2 fs-5"></i>
+                            <strong>Secure Upload</strong>
+                            <div class="x-small">Your files are encrypted</div>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="bi bi-lightning-charge text-info d-block mb-2 fs-5"></i>
+                            <strong>Fast Processing</strong>
+                            <div class="x-small">Advanced AI extraction</div>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="bi bi-graph-up text-info d-block mb-2 fs-5"></i>
+                            <strong>Accurate Results</strong>
+                            <div class="x-small">High precision analysis</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="text-center mt-3">
-                <a href="{% url 'analysis_app:history' %}" class="text-decoration-none text-muted small">
-                    <i class="bi bi-arrow-left"></i> Back to History
-                </a>
+           
+            <div class="text-center mt-4">
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-question-circle me-1"></i>
+                    Need help? Contact support or check our documentation
+                </p>
             </div>
 
         </div>
@@ -77,30 +159,84 @@
 <style>
  
     .card {
-        transition: transform 0.2s;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    
+    .card:hover {
+        transform: translateY(-2px);
+    }
+    
     .form-control-lg {
-        border-radius: 10px;
+        border-radius: 12px;
+        padding: 0.875rem 1.25rem;
+        font-size: 1rem;
+    }
+    
+    .form-control:focus {
+        border-color: #0dcaf0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 202, 240, 0.15);
+    }
+    
+    .btn-lg {
+        padding: 0.875rem 1.5rem;
+        border-radius: 12px;
+        font-size: 1.05rem;
+    }
+    
+    .rounded-4 {
+        border-radius: 1rem !important;
+    }
+    
+    .bg-gradient {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0aa8d1 100%) !important;
+    }
+    
+    .x-small {
+        font-size: 0.75rem;
+    }
+    
+ 
+    #submitBtn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 </style>
 
 <script>
-
+   
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        
         var btn = document.getElementById('submitBtn');
         var btnText = document.getElementById('btnText');
+        var btnIcon = document.getElementById('btnIcon');
         var spinner = document.getElementById('btnSpinner');
         var input = document.getElementById('pdfFile');
 
-        
         if (input.files.length > 0) {
-           
+          
             btn.disabled = true;
             
-       
-            btnText.textContent = "Processing PDF (Please wait)...";
+        
+            btnIcon.classList.add('d-none');
+            btnText.textContent = "Processing PDF...";
             spinner.classList.remove('d-none');
+            
+           
+            btn.classList.remove('btn-info');
+            btn.classList.add('btn-secondary');
+        }
+    });
+
+   
+    document.getElementById('pdfFile').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (file) {
+            var preview = document.getElementById('filePreview');
+            var fileName = document.getElementById('fileName');
+            var fileSize = document.getElementById('fileSize');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = (file.size / 1024).toFixed(2) + ' KB';
+            preview.classList.remove('d-none');
         }
     });
 </script>

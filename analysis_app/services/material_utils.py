@@ -4,7 +4,7 @@ import re
 from typing import Tuple
 
 def parse_spec_grade(raw: str | None) -> Tuple[str, str]:
-  
+   
     if raw is None:
         return "", ""
 
@@ -13,7 +13,7 @@ def parse_spec_grade(raw: str | None) -> Tuple[str, str]:
     if not s:
         return "", ""
 
-   
+    
     if "/" in s:
         left, right = s.rsplit("/", 1)
         left = left.strip()
@@ -36,29 +36,29 @@ def parse_spec_grade(raw: str | None) -> Tuple[str, str]:
         clean_left = clean_left_tokens(t_left)
 
         if len(t_right) >= 2:
-           
+            
             spec_tokens = t_right[:-1]
             grade = t_right[-1]
             spec = " ".join(spec_tokens)
         else:
             
             grade = t_right[0]
-           
             spec = " ".join(clean_left) if clean_left else left
 
     else:
-        
+      
         if "-" in s:
             left, right = s.split("-", 1)
             left = left.strip()
             right = right.strip()
+
             
             if any(c.isalpha() for c in right) and " " not in right:
                 spec = left
                 grade = right
             else:
                 
-                m = re.search(r"(\d+(?:\.\d+)?[A-Z]*)\s*$", s)
+                m = re.search(r"(\d+(?:\.\d+)?[A-Z0-9]*)\s*$", s)
                 grade = ""
                 spec = s
                 if m:
@@ -66,7 +66,7 @@ def parse_spec_grade(raw: str | None) -> Tuple[str, str]:
                     spec = s[: m.start()].strip(" -")
         else:
            
-            m = re.search(r"(\d+(?:\.\d+)?[A-Z]*)\s*$", s)
+            m = re.search(r"(\d+(?:\.\d+)?[A-Z0-9]*)\s*$", s)
             grade = ""
             spec = s
             if m:
@@ -75,12 +75,32 @@ def parse_spec_grade(raw: str | None) -> Tuple[str, str]:
 
     
     spec = spec.replace("A/SA", "SA")
-
-    
     spec = re.sub(r"-GR\.?\d*", "", spec)
     spec = re.sub(r"\bGR\.?\d*\b", "", spec)
-
     spec = re.sub(r"\s+", " ", spec).strip(" -")
     spec = spec.rstrip(".")
     spec = spec.replace(" .", "")
+
+    
+    toks = spec.split()
+    if toks and toks[0] in {"ASTM", "ASME"} and len(toks) >= 2:
+        spec = " ".join(toks[1:])
+
+    
+    if not grade:
+        m = re.search(r"\bGR\.?([A-Z0-9]+)\b", spec)
+        if m:
+            grade = m.group(1)
+            spec = spec[: m.start()].strip(" -")
+
+    
+    m2 = re.match(r"^(SA[- ]?\d+)\s*[- ]*TP\.?\d+[A-Z0-9]*$", spec)
+    if m2:
+        spec = m2.group(1)
+
+    
+    grade = re.sub(r"^GR\.?\s*", "", grade or "")
+    grade = grade.rstrip(".")
+
+    spec = spec.strip()
     return spec, grade
