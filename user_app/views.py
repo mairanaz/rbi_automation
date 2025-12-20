@@ -205,7 +205,7 @@ def login_view(request):
             }
 
             messages.success(request, "Login successful!")
-            return redirect("upload")
+            return redirect("analysis_app:upload")
 
         else:
             try:
