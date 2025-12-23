@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import json
 import openpyxl
@@ -25,6 +25,7 @@ from .services.masterfile_builder import (
 from .services.ppt_builder import sync_all_slides_from_masterfile
 
 from core_app.decorators import rbi_login_required
+import jwt
 
 
 STEP_LABEL = {
@@ -32,40 +33,34 @@ STEP_LABEL = {
     "bom": "Select Bill Of Material Region",
     "slide_image": "Select Slide Image Region",
 }
-
+def _user_key(analysis: Analysis) -> str:
+    
+    if analysis.created_by:
+        return analysis.created_by.staff_id or analysis.created_by.external_id or "anon"
+    return "anon"
 
 
 @rbi_login_required
 def upload_analysis(request):
-  
     if request.method == "POST":
         pdf_file = request.FILES.get("pdf_file")
         if not pdf_file:
             messages.error(request, "Please select a PDF file.")
             return redirect("analysis_app:upload")
 
-     
-        rbi_user = request.session.get("rbi_user") or {}
-        external_user_id = rbi_user.get("id")
-        external_user_email = rbi_user.get("email")
-        external_user_name = rbi_user.get("name")
-
-        if not external_user_id:
-            messages.error(request, "Session expired or user not found. Please log in again.")
+        
+        ext_user = getattr(request, "external_user", None)
+        if not ext_user:
+            messages.error(request, "Session expired. Please log in again.")
             return redirect("login")
 
-       
         analysis = Analysis.objects.create(
-            user=None,  
-            external_user_id=external_user_id,
-            external_user_email=external_user_email,
-            external_user_name=external_user_name,
+            created_by=ext_user,
             file=pdf_file,
             original_filename=pdf_file.name,
             status="awaiting_regions",
         )
 
-        
         pdf_path = analysis.file.path
 
         from pdf2image import convert_from_path
@@ -104,7 +99,6 @@ def upload_analysis(request):
         )
 
     return render(request, "uploading.html")
-
 
 
 @rbi_login_required
@@ -427,26 +421,21 @@ def generate_analysis(request, analysis_id):
         messages.error(request, "Design Data and BOM regions are required.")
         return redirect("analysis_app:review_analysis", analysis_id=analysis.id)
 
-  
     analysis.status = "in_progress"
     analysis.save(update_fields=["status"])
 
-   
+    user_key = _user_key(analysis)
+
     if not analysis.workbook_path:
-        user_key = analysis.external_user_id or "anon"
         analysis.workbook_path = f"analysis/workbooks/{user_key}_IPETRO_Masterfile.xlsx"
         analysis.save(update_fields=["workbook_path"])
 
-   
     if not analysis.pptx_path:
-        user_key = analysis.external_user_id or "anon"
         analysis.pptx_path = f"analysis/ppt/{user_key}_InspectionPlan.pptx"
         analysis.save(update_fields=["pptx_path"])
 
-
     pmt_no, equipment_no = parse_filename(analysis.original_filename)
 
-   
     design_crop_rel = crop_region_from_page(
         design_region.page.image.name,
         design_region.x1,
@@ -454,7 +443,6 @@ def generate_analysis(request, analysis_id):
         design_region.x2,
         design_region.y2,
     )
-
 
     bom_items: List[Dict[str, Any]] = []
     for bom_region in bom_regions:
@@ -475,7 +463,6 @@ def generate_analysis(request, analysis_id):
         except Exception as e:
             print("BOM materials extraction failed for one region:", e)
 
-
     design_meta: Dict[str, Any] = {}
     try:
         design_meta = extract_design_metadata(
@@ -486,7 +473,6 @@ def generate_analysis(request, analysis_id):
     except Exception as e:
         print("Design metadata extraction failed:", e)
 
-    
     slide_image_paths: List[str] = []
     for r in slide_regions:
         crop_rel = crop_region_from_page(
@@ -502,7 +488,6 @@ def generate_analysis(request, analysis_id):
     if slide_image_paths:
         image_map[(pmt_no, equipment_no)] = slide_image_paths[0]
 
-   
     try:
         append_equipment_to_masterfile(
             workbook_rel_path=analysis.workbook_path,
@@ -518,7 +503,6 @@ def generate_analysis(request, analysis_id):
     except Exception as e:
         print("Append to Masterfile failed:", e)
 
- 
     try:
         sync_all_slides_from_masterfile(
             pptx_rel_path=analysis.pptx_path,
@@ -528,7 +512,6 @@ def generate_analysis(request, analysis_id):
     except Exception as e:
         print("PPT sync failed:", e)
 
-    
     analysis.status = "awaiting_excel_review"
     analysis.save(update_fields=["status"])
 
@@ -538,7 +521,6 @@ def generate_analysis(request, analysis_id):
         "Please review/edit the Excel online.",
     )
     return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
-
 
 
 @rbi_login_required
@@ -594,16 +576,13 @@ def save_masterfile(request, analysis_id):
 
     raw = request.POST.get("table_data")
     if not raw:
-        print("SAVE_MASTERFILE JSON ERROR: No JSON data provided")
-        print("REQUEST.POST:", request.POST)
         messages.error(request, "No data received from grid.")
         return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
 
     try:
-        grid = json.loads(raw)  
+        grid = json.loads(raw)
     except json.JSONDecodeError as e:
         print("SAVE_MASTERFILE JSON ERROR:", e)
-        print("RAW:", raw[:200])
         messages.error(request, "Invalid data format from grid.")
         return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
 
@@ -617,17 +596,15 @@ def save_masterfile(request, analysis_id):
         return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
 
     wb = load_workbook(abs_path)
-    ws = wb["Masterfile"]  
+    ws = wb["Masterfile"]
 
-    start_row = 8   
-    start_col = 1   
-
+    start_row = 8
+    start_col = 1
 
     max_cols = max((len(r) for r in grid), default=0)
     for r in grid:
         while len(r) < max_cols:
             r.append("")
-
 
     old_last_row = ws.max_row
     for row_idx in range(start_row, old_last_row + 1):
@@ -637,7 +614,6 @@ def save_masterfile(request, analysis_id):
                 continue
             cell.value = None
 
-    # Tulis data baru
     for r_idx, row_data in enumerate(grid, start=start_row):
         for c_idx, value in enumerate(row_data, start=start_col):
             cell = ws.cell(row=r_idx, column=c_idx)
@@ -647,11 +623,9 @@ def save_masterfile(request, analysis_id):
 
     wb.save(abs_path)
 
-    
     try:
-        user_key = analysis.external_user_id or "anon"
+        user_key = _user_key(analysis)
 
-        
         if not analysis.pptx_path:
             analysis.pptx_path = f"analysis/ppt/{user_key}_InspectionPlan.pptx"
             analysis.save(update_fields=["pptx_path"])
@@ -659,18 +633,15 @@ def save_masterfile(request, analysis_id):
         sync_all_slides_from_masterfile(
             pptx_rel_path=analysis.pptx_path,
             workbook_rel_path=analysis.workbook_path,
-            image_map=None,  
+            image_map=None,
         )
     except Exception as e:
         print("PPT sync failed after save_masterfile:", e)
         messages.warning(request, "✅ Masterfile saved, but PPT sync failed.")
         return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
 
-
-
     messages.success(request, "✅ Masterfile has been saved successfully.")
     return redirect("analysis_app:edit_masterfile", analysis_id=analysis.id)
-
 
 
 @rbi_login_required
@@ -688,36 +659,31 @@ def upload_corrected_masterfile(request, analysis_id):
         return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
 
     if not analysis.workbook_path:
-        user_key = analysis.external_user_id or "anon"
+        user_key = _user_key(analysis)
         analysis.workbook_path = f"analysis/workbooks/{user_key}_IPETRO_Masterfile.xlsx"
-        analysis.save()
+        analysis.save(update_fields=["workbook_path"])
 
     abs_path = Path(settings.MEDIA_ROOT) / analysis.workbook_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
 
-    
     with abs_path.open("wb+") as dest:
         for chunk in file_obj.chunks():
             dest.write(chunk)
 
-    
     analysis.status = "completed"
-    analysis.save()
+    analysis.save(update_fields=["status"])
 
     messages.success(request, "Corrected Masterfile uploaded successfully.")
     return redirect("analysis_app:analysis_detail", analysis_id=analysis.id)
 
 
-
 @rbi_login_required
 def analysis_history(request):
-    rbi_user = request.session.get("rbi_user") or {}
-    external_user_id = rbi_user.get("id")
-
     qs = Analysis.objects.all().order_by("-created_at")
 
-    if external_user_id:
-        qs = qs.filter(external_user_id=external_user_id)
+    ext_user = getattr(request, "external_user", None)
+    if ext_user:
+        qs = qs.filter(created_by=ext_user)
 
     paginator = Paginator(qs, 10)
     page_number = request.GET.get("page")

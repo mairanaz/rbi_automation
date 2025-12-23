@@ -1,6 +1,33 @@
 from django.db import models
 from django.conf import settings
 # Create your models here.
+
+
+class ExternalUser(models.Model):
+    provider = models.CharField(max_length=30, default="rbi_auth")
+    external_id = models.CharField(max_length=64)  # Node user.id (stringkan)
+    staff_id = models.CharField(max_length=20, null=True, blank=True)
+
+    email = models.EmailField(null=True, blank=True)
+    name = models.CharField(max_length=255, null=True, blank=True)
+
+    role_snapshot = models.CharField(max_length=32, null=True, blank=True)
+
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    avatar_url = models.URLField(max_length=500, null=True, blank=True)
+
+    class Meta:
+        unique_together = ("provider", "external_id")
+        indexes = [
+            models.Index(fields=["provider", "external_id"]),
+            models.Index(fields=["email"]),
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.external_id}"
+
+
 class Analysis(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -11,20 +38,6 @@ class Analysis(models.Model):
         ("failed", "Failed"),
     ]
 
-
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="analyses",
-        null=True,
-        blank=True,
-    )
-
-   
-    external_user_id = models.PositiveIntegerField(null=True, blank=True)
-    external_user_email = models.CharField(max_length=255, null=True, blank=True)
-    external_user_name = models.CharField(max_length=255, null=True, blank=True)
-
     file = models.FileField(upload_to="analysis/pdf/")
     original_filename = models.CharField(max_length=255)
     status = models.CharField(
@@ -34,6 +47,14 @@ class Analysis(models.Model):
     pptx_path = models.CharField(max_length=500, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    
+    created_by = models.ForeignKey(
+        ExternalUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="analyses",
+    )
 
     def __str__(self):
         return f"{self.original_filename} ({self.id})"

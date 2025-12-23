@@ -14,6 +14,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 load_dotenv()
+from django.core.exceptions import ImproperlyConfigured
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +33,10 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 # RBI API settings
 RBI_API_BASE_URL = "http://localhost:6501/api/v1"
 RBI_API_KEY = ""  # buat masa ni kosong dulu, backend kita tak perlukan token untuk /auth/register
+RBI_SERVER_ORIGIN = "http://localhost:6501"
 
+JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_ALGORITHM = "HS256"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -78,6 +83,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core_app.context_processors.rbi_external_user',
+
             ],
         },
     },

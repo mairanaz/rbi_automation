@@ -12,12 +12,25 @@
           data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
           <div class="d-flex align-items-center">
             <div class="me-sm-2 me-0">
-              <img src="{% static 'assets/images/faces/9.jpg' %}" alt="img" width="32" height="32"
-                class="rounded-circle" />
+            <img
+              src="{% if rbi_user and rbi_user.avatar_url %}{{ rbi_user.avatar_url }}{% else %}{% static 'assets/images/faces/9.jpg' %}{% endif %}"
+              alt="img"
+              width="32"
+              height="32"
+              class="rounded-circle"
+            />
+
             </div>
             <div class="d-sm-block d-none">
-              <p class="fw-semibold mb-0 lh-1">Json Taylor</p>
+              <p class="fw-semibold mb-0 lh-1">
+                {% if rbi_user %}
+                  {{ rbi_user.name|default:rbi_user.email|default:"User" }}
+                {% else %}
+                  User
+                {% endif %}
+              </p>
             </div>
+
           </div>
         </a>
         <!-- End::header-link|dropdown-toggle -->

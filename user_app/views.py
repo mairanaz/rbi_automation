@@ -29,6 +29,7 @@ class LoginAPIView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 def google_callback(request):
     token = request.GET.get("token")
 
@@ -52,16 +53,23 @@ def google_callback(request):
             email = user_data.get("email")
             role = user_data.get("role")
             user_id = user_data.get("id")
+            name = user_data.get("name") or user_data.get("fullName")
 
-           
+            profile_image = (
+                user_data.get("profile_image")
+                or user_data.get("google_image")
+                or user_data.get("picture")
+            )
             request.session["email"] = email
 
            
             request.session["rbi_user"] = {
                 "id": user_id,
                 "email": email,
-                "name": None,  
+                "name": name,  
                 "role": role,
+                "profile_image": profile_image,
+
             }
 
         else:
@@ -77,6 +85,30 @@ def google_callback(request):
     messages.success(request, "Logged in with Google successfully.")
     return redirect("analysis_app:upload")
 
+def resolve_avatar(raw):
+    if not raw:
+        return None
+    raw = str(raw).strip()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    origin = getattr(settings, "RBI_SERVER_ORIGIN", "").rstrip("/")
+    if raw.startswith("/"):
+        return f"{origin}{raw}" if origin else raw
+    return f"{origin}/{raw}" if origin else raw
+
+    avatar_url = resolve_avatar(profile_image)
+
+    ExternalUser.objects.update_or_create(
+        provider="rbi_auth",
+        external_id=str(user_id),
+        defaults={
+            "email": email,
+            "name": name,
+            "role_snapshot": role,
+            "avatar_url": avatar_url,
+            "last_seen_at": timezone.now(),
+        },
+    )
 
 def google_login(request):
   
