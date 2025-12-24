@@ -1,3 +1,9 @@
+make sure dah ada pyhton,kalau xde kene download yang versi Python 3.13.2
+node version v20.19.6
+
+nak check : python --version
+nak check : node --version
+
 1.create venv
 2.python -m venv venv
 3.venv\Scripts\activate
