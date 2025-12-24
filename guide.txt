@@ -1,0 +1,32 @@
+1.create venv
+2.python -m venv venv
+3.venv\Scripts\activate
+4.Migrate table
+5.crate 2 database "driv_rbi_auth" and "rbiv2"
+6.Run "python manage.py makemigrations"
+7.Run "python manage.py migrate"
+8.Make sure venv dah active then run "pip install -r requirements.txt"
+9.File .env paste dalam Folder RBI_AUTOMATION
+
+
+
+
+RBI_SOFTWARE
+makesure dah ade node.js,,kalau xde download dan install dkt official website
+run code "npx sequelize-cli db:migrate"
+start server run "npm run dev"
+
+env file paste folder RBI_SERVER
+
+Dapat zip poppler-25.11.0
+extract paste dekat dekstop
+copy path location file
+Lepas dah pste masuk folder analysis_app then tukar dekat views.py file
+
+ctrl+F paste " POPPLER_PATH = r"C:\Users\nazrisaidon\Desktop\poppler-25.11.0\Library\bin"" gantikan dengan path dalam laptop yang dh copy tadi.
+
+Run server "python manage.py runserver"
+
+
+
+
